@@ -1,0 +1,89 @@
+import Link from "next/link";
+import { CalendarDays, Plus, MapPin } from "lucide-react";
+import { requireOrg } from "@/lib/queries";
+import { db } from "@/lib/db";
+import { PageHeader, EmptyState } from "@/components/ui/misc";
+import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button, ButtonLink } from "@/components/ui/button";
+import { EVENT_STATUS, EVENT_TYPES, EVENT_FORMATS, labelOf } from "@/lib/constants";
+import { formatDate } from "@/lib/utils";
+
+export default async function EventsPage() {
+  const { org } = await requireOrg();
+  const events = await db.event.findMany({
+    where: { organizationId: org.id },
+    orderBy: { createdAt: "desc" },
+    include: { _count: { select: { registrations: true, sessions: true, sponsors: true } } },
+  });
+
+  return (
+    <div>
+      <PageHeader
+        title="Events"
+        description="Create, manage, and measure every event in your workspace."
+        action={
+          <ButtonLink href="/dashboard/events/new">
+            <Plus className="size-4" /> New event
+          </ButtonLink>
+        }
+      />
+
+      <div className="mb-5 flex flex-wrap items-center gap-2">
+        {["All", "Draft", "Published", "Live", "Ended"].map((f, i) => (
+          <Button key={f} variant={i === 0 ? "secondary" : "ghost"} size="sm">
+            {f}
+          </Button>
+        ))}
+      </div>
+
+      {events.length === 0 ? (
+        <EmptyState
+          icon={<CalendarDays />}
+          title="No events yet"
+          description="Your events will appear here. Create your first one to get started."
+          action={<ButtonLink href="/dashboard/events/new"><Plus className="size-4" /> Create event</ButtonLink>}
+        />
+      ) : (
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {events.map((e) => {
+            const status = EVENT_STATUS[e.status];
+            return (
+              <Link key={e.id} href={`/dashboard/events/${e.id}`}>
+                <Card className="h-full overflow-hidden transition-shadow hover:shadow-md">
+                  <div
+                    className="h-24 bg-brand-gradient"
+                    style={{ background: `linear-gradient(135deg, ${e.brandColor}22, ${e.brandColor}08)` }}
+                  />
+                  <CardContent className="p-5">
+                    <div className="-mt-9 mb-3 flex size-12 items-center justify-center rounded-xl border bg-card shadow-sm">
+                      <CalendarDays className="size-5 text-primary" />
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Badge tone={status.tone}>{status.label}</Badge>
+                      <Badge tone="neutral">{labelOf(EVENT_FORMATS, e.format)}</Badge>
+                    </div>
+                    <h3 className="mt-3 font-semibold leading-tight">{e.name}</h3>
+                    <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">{e.tagline ?? labelOf(EVENT_TYPES, e.type)}</p>
+                    <div className="mt-4 flex items-center gap-3 text-xs text-muted-foreground">
+                      <span>{formatDate(e.startsAt)}</span>
+                      {e.city && (
+                        <span className="flex items-center gap-1">
+                          <MapPin className="size-3" /> {e.city}
+                        </span>
+                      )}
+                    </div>
+                    <div className="mt-4 flex gap-4 border-t pt-3 text-sm">
+                      <span><strong>{e._count.registrations}</strong> <span className="text-muted-foreground">registered</span></span>
+                      <span><strong>{e._count.sessions}</strong> <span className="text-muted-foreground">sessions</span></span>
+                    </div>
+                  </CardContent>
+                </Card>
+              </Link>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
