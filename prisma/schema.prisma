@@ -1,9 +1,9 @@
 // MeetLynq data model
 // ---------------------------------------------------------------------------
-// Local/dev uses SQLite for zero-config runnability. The schema is written to
-// be portable to PostgreSQL for production (swap provider + add native enums).
-// Enum-like fields are modeled as String with documented constants in
-// src/lib/constants.ts. List fields are stored as JSON strings.
+// Runs on PostgreSQL (Supabase in production). Enum-like fields are modeled as
+// String with documented constants in src/lib/constants.ts; list fields are
+// stored as JSON strings and parsed via parseJson. The schema is portable —
+// switch `provider` to "sqlite" + point DATABASE_URL at a file for offline dev.
 // ---------------------------------------------------------------------------
 
 generator client {
@@ -11,7 +11,7 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 

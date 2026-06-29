@@ -21,20 +21,28 @@ event ROI — all in one place.
 - Swappable provider interfaces for **payments** (Stripe), **email** (Resend/Postmark/SendGrid),
   **AI** (Anthropic/OpenAI), and **video** (Daily/Zoom/Meet/Teams)
 
-The app runs fully offline with **no API keys** — payments, email, AI, and video
+The app runs with **no third-party API keys** — payments, email, AI, and video
 default to deterministic mock providers so the whole product is demoable.
+
+> **Deploying?** See [`DEPLOYMENT.md`](DEPLOYMENT.md) for Vercel + Supabase setup.
+> A Supabase Postgres project for this app is already provisioned and seeded.
 
 ---
 
 ## Quick start
 
 ```bash
-npm install          # installs deps + generates Prisma client
-cp .env.example .env # defaults are fine for local dev (SQLite)
-npm run db:push      # create the SQLite schema
-npm run db:seed      # load a fully-populated demo event
-npm run dev          # http://localhost:3000
+npm install                       # installs deps + generates Prisma client
+cp .env.example .env              # set DATABASE_URL to your PostgreSQL connection
+npm run db:push                   # create the schema
+npm run db:seed                   # load a fully-populated demo event
+npm run dev                       # http://localhost:3000
 ```
+
+> Needs a PostgreSQL database. Point `DATABASE_URL` at any Postgres instance
+> (local, Supabase, Neon, Vercel Postgres). To run fully offline, you can switch
+> the `datasource` provider in `prisma/schema.prisma` to `sqlite` and use
+> `DATABASE_URL="file:./dev.db"`.
 
 ### Demo logins (after seeding)
 
