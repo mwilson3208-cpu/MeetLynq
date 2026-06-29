@@ -52,21 +52,46 @@ This seeds the demo workspace and the public event `growthscale-summit-2026`.
 1. Go to **https://vercel.com/new** and **Import** the GitHub repo `mwilson3208-cpu/MeetLynq`.
 2. Framework preset: **Next.js** (auto-detected). Build command and output are auto-detected
    (`next build`; the repo's `build` script also runs `prisma generate`).
-3. Add **Environment Variables** (Project Settings → Environment Variables):
+3. Set the environment variables — choose **Option A (recommended)** or **Option B**.
+4. Click **Deploy**.
+
+### Option A — Native Vercel ↔ Supabase integration (recommended)
+
+Let the integration inject the database connection automatically.
+
+1. Install the integration (either entry point works):
+   - Vercel: **https://vercel.com/marketplace/supabase** → **Add Integration**, or
+   - Supabase dashboard → project **MeetLynq** → **Integrations → Vercel → Connect**.
+2. When prompted, link **Supabase project `MeetLynq`** ↔ **your Vercel project**, scoped to
+   Production (and Preview if you want).
+3. The integration injects these env vars into Vercel automatically — including
+   **`POSTGRES_PRISMA_URL`** (transaction pooler, pgbouncer-ready) and
+   `POSTGRES_URL_NON_POOLING`, plus the `SUPABASE_*` keys. **The app reads
+   `POSTGRES_PRISMA_URL` automatically** (see `src/lib/db.ts`), so you do **not**
+   need to set `DATABASE_URL` yourself.
+4. Add the two variables the integration does **not** provide:
 
    | Name | Value |
    |---|---|
-   | `DATABASE_URL` | the **pooled** string from step 1 (with `?pgbouncer=true`) |
-   | `AUTH_SECRET` | a random 32-byte secret — generate with `openssl rand -base64 32` |
+   | `AUTH_SECRET` | a random 32-byte secret — `openssl rand -base64 32` |
    | `NEXT_PUBLIC_APP_URL` | your Vercel URL, e.g. `https://meetlynq.vercel.app` |
-   | `EMAIL_PROVIDER` | `mock` (or `resend`/`postmark`/`sendgrid` + `EMAIL_API_KEY`) |
-   | `AI_PROVIDER` | `mock` (or `anthropic`/`openai` + `AI_API_KEY`) |
-   | `VIDEO_PROVIDER` | `mock` |
 
-4. Click **Deploy**.
+   (`EMAIL_PROVIDER` / `AI_PROVIDER` / `VIDEO_PROVIDER` default to `mock` if unset.)
 
-> Optional: connect the project via the Vercel ↔ Supabase integration to inject
-> `DATABASE_URL` automatically instead of pasting it.
+> The app's Prisma client resolves the connection string in this order:
+> `DATABASE_URL` → `POSTGRES_PRISMA_URL` → `POSTGRES_URL`. With the integration,
+> `DATABASE_URL` is absent and `POSTGRES_PRISMA_URL` is used.
+
+### Option B — Set `DATABASE_URL` manually
+
+Skip the integration and add these in Project Settings → Environment Variables:
+
+| Name | Value |
+|---|---|
+| `DATABASE_URL` | the **pooled** string from step 1 (port 6543, with `?pgbouncer=true`) |
+| `AUTH_SECRET` | a random 32-byte secret — `openssl rand -base64 32` |
+| `NEXT_PUBLIC_APP_URL` | your Vercel URL, e.g. `https://meetlynq.vercel.app` |
+| `EMAIL_PROVIDER` / `AI_PROVIDER` / `VIDEO_PROVIDER` | `mock` |
 
 ---
 
