@@ -87,6 +87,15 @@ export default async function PublicEventPage({
       </header>
 
       <main className="flex-1">
+        {/* Cover image */}
+        {event.coverImageUrl && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={event.coverImageUrl}
+            alt={`${event.name} cover`}
+            className="h-48 w-full border-b object-cover sm:h-64 lg:h-80"
+          />
+        )}
         {/* Hero */}
         <section
           className="relative overflow-hidden border-b"

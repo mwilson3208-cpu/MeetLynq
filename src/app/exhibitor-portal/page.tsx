@@ -11,6 +11,8 @@ import { formatDate } from "@/lib/utils";
 
 export const metadata = { title: "Exhibitor portal" };
 
+export const dynamic = "force-dynamic";
+
 export default async function ExhibitorPortal() {
   const event =
     (await db.event.findFirst({ where: { slug: "growthscale-summit-2026" } })) ??

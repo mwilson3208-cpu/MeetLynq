@@ -17,6 +17,8 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Avatar, EmptyState, Separator } from "@/components/ui/misc";
 
+export const dynamic = "force-dynamic";
+
 export default async function AttendeePortalPage() {
   const event =
     (await db.event.findFirst({ where: { slug: "growthscale-summit-2026" } })) ??

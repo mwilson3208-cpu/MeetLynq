@@ -95,7 +95,24 @@ Skip the integration and add these in Project Settings → Environment Variables
 
 ---
 
-## 4. Verify
+## 4b. File uploads (Supabase Storage)
+
+Image uploads (event cover images, logos) use **Supabase Storage**. A public
+bucket named **`event-media`** (5 MB limit, image MIME types) has already been
+created in the project.
+
+- Uploads run in authenticated organizer **server actions** and use the
+  **`SUPABASE_SERVICE_ROLE_KEY`** (injected by the integration) to write to the
+  bucket; public read is served from the bucket's public URL.
+- The code reads `SUPABASE_URL` / `SUPABASE_SERVICE_ROLE_KEY` (falling back to the
+  anon key) — all provided automatically by the Vercel ↔ Supabase integration.
+- If those vars are absent (e.g. local dev without keys), the upload UI shows a
+  "storage not configured" hint and the rest of the app is unaffected.
+
+Try it after deploy: **Dashboard → an event → Builder → Brand → Cover image →
+Upload**. The image is stored in Supabase and rendered on the public event page.
+
+## 4c. Verify
 
 - `https://<your-app>/api/health` → `{"status":"ok","db":"up"}`
 - `https://<your-app>/e/growthscale-summit-2026` → the public event page

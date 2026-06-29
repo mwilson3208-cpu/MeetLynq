@@ -10,6 +10,8 @@ import { SPONSOR_LEVELS, LEAD_QUALITY } from "@/lib/constants";
 
 export const metadata = { title: "Sponsor portal" };
 
+export const dynamic = "force-dynamic";
+
 export default async function SponsorPortal() {
   const event =
     (await db.event.findFirst({ where: { slug: "growthscale-summit-2026" } })) ??

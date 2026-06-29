@@ -7,6 +7,9 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Input, Field, Textarea } from "@/components/ui/input";
 import { EmptyState, Separator } from "@/components/ui/misc";
+import { isStorageConfigured } from "@/lib/storage";
+import { ImageUpload } from "@/components/builder/image-upload";
+import { uploadEventCover } from "./upload-actions";
 
 export default async function EventBuilder({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -142,9 +145,16 @@ export default async function EventBuilder({ params }: { params: Promise<{ id: s
                 </div>
               </div>
               <Separator />
-              <Field label="Logo URL">
-                <Input placeholder="https://…/logo.png" defaultValue={event.coverImageUrl ?? ""} />
-              </Field>
+              <div>
+                <p className="mb-2 text-sm font-medium">Cover image</p>
+                <ImageUpload
+                  action={uploadEventCover}
+                  eventId={event.id}
+                  currentUrl={event.coverImageUrl}
+                  label="Cover image"
+                  configured={isStorageConfigured()}
+                />
+              </div>
               <Field label="Font family">
                 <Input placeholder="Inter" defaultValue="Inter" />
               </Field>

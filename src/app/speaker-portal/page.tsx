@@ -10,6 +10,8 @@ import { formatTime, parseJson } from "@/lib/utils";
 
 export const metadata = { title: "Speaker portal" };
 
+export const dynamic = "force-dynamic";
+
 export default async function SpeakerPortal() {
   const event =
     (await db.event.findFirst({ where: { slug: "growthscale-summit-2026" } })) ??
