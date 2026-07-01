@@ -1,4 +1,5 @@
-import { Store, Plus, Download, Users, Flame } from "lucide-react";
+import { Store, Plus, Users, Flame } from "lucide-react";
+import { ExportButton } from "@/components/ui/export-button";
 import { getEventOr404 } from "@/lib/queries";
 import { db } from "@/lib/db";
 import { StatCard, Avatar, EmptyState } from "@/components/ui/misc";
@@ -37,9 +38,7 @@ export default async function ExhibitorsPage({ params }: { params: Promise<{ id:
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline">
-            <Download /> Export leads (CSV)
-          </Button>
+          <ExportButton eventId={id} type="leads" label="Export leads (CSV)" />
           <Button variant="primary">
             <Plus /> Add exhibitor
           </Button>

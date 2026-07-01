@@ -1,12 +1,15 @@
-import { Building2, Plus, Sparkles, Users, Gauge, Eye, EyeOff } from "lucide-react";
+import { Building2, Sparkles, Users, Gauge, Eye, EyeOff } from "lucide-react";
 import { getEventOr404 } from "@/lib/queries";
 import { db } from "@/lib/db";
 import { generate } from "@/lib/ai";
 import { StatCard, Avatar, Progress, EmptyState } from "@/components/ui/misc";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Field, Input, Select, Textarea } from "@/components/ui/input";
+import { FormDialog } from "@/components/ui/form-dialog";
+import { DeleteButton } from "@/components/ui/delete-button";
 import { SPONSOR_LEVELS } from "@/lib/constants";
+import { createSponsor, deleteSponsor } from "../manage-actions";
 
 export default async function SponsorsPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -25,6 +28,28 @@ export default async function SponsorsPage({ params }: { params: Promise<{ id: s
 
   const aiPackage = await generate("sponsor_package", { name: event.name });
 
+  const sponsorFields = (
+    <>
+      <input type="hidden" name="eventId" value={id} />
+      <Field label="Name">
+        <Input name="name" placeholder="Acme Inc." required />
+      </Field>
+      <Field label="Level">
+        <Select name="level" defaultValue="GOLD">
+          {Object.entries(SPONSOR_LEVELS).map(([k, v]) => (
+            <option key={k} value={k}>{v.label}</option>
+          ))}
+        </Select>
+      </Field>
+      <Field label="Description">
+        <Textarea name="description" rows={3} placeholder="A short description of this sponsor." />
+      </Field>
+      <Field label="Website">
+        <Input name="website" type="url" placeholder="https://acme.com" />
+      </Field>
+    </>
+  );
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -34,9 +59,15 @@ export default async function SponsorsPage({ params }: { params: Promise<{ id: s
             Manage sponsorship tiers, value, and captured leads.
           </p>
         </div>
-        <Button variant="primary">
-          <Plus /> Add sponsor
-        </Button>
+        <FormDialog
+          buttonLabel="Add sponsor"
+          title="Add sponsor"
+          description="Add a sponsor to this event."
+          action={createSponsor}
+          submitLabel="Add sponsor"
+        >
+          {sponsorFields}
+        </FormDialog>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-3">
@@ -53,9 +84,15 @@ export default async function SponsorsPage({ params }: { params: Promise<{ id: s
               title="No sponsors yet"
               description="Add sponsors to showcase partners, track their value, and attribute captured leads."
               action={
-                <Button variant="primary">
-                  <Plus /> Add sponsor
-                </Button>
+                <FormDialog
+                  buttonLabel="Add sponsor"
+                  title="Add sponsor"
+                  description="Add a sponsor to this event."
+                  action={createSponsor}
+                  submitLabel="Add sponsor"
+                >
+                  {sponsorFields}
+                </FormDialog>
               }
             />
           </CardContent>
@@ -77,10 +114,18 @@ export default async function SponsorsPage({ params }: { params: Promise<{ id: s
                         </Badge>
                       </div>
                     </div>
-                    <Badge tone={s.visible ? "success" : "neutral"}>
-                      {s.visible ? <Eye className="size-3" /> : <EyeOff className="size-3" />}
-                      {s.visible ? "Visible" : "Hidden"}
-                    </Badge>
+                    <div className="flex items-center gap-1">
+                      <Badge tone={s.visible ? "success" : "neutral"}>
+                        {s.visible ? <Eye className="size-3" /> : <EyeOff className="size-3" />}
+                        {s.visible ? "Visible" : "Hidden"}
+                      </Badge>
+                      <DeleteButton
+                        action={deleteSponsor}
+                        id={s.id}
+                        eventId={id}
+                        confirmText={`Delete "${s.name}"? This can't be undone.`}
+                      />
+                    </div>
                   </div>
                 </CardHeader>
                 <CardContent className="space-y-4">
