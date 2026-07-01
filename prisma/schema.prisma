@@ -1,0 +1,758 @@
+// MeetLynq data model
+// ---------------------------------------------------------------------------
+// Runs on PostgreSQL (Supabase in production). Enum-like fields are modeled as
+// String with documented constants in src/lib/constants.ts; list fields are
+// stored as JSON strings and parsed via parseJson. The schema is portable —
+// switch `provider` to "sqlite" + point DATABASE_URL at a file for offline dev.
+// ---------------------------------------------------------------------------
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// --- Identity & tenancy ---------------------------------------------------
+
+model User {
+  id            String   @id @default(cuid())
+  email         String   @unique
+  name          String
+  passwordHash  String
+  avatarUrl     String?
+  role          String   @default("ORGANIZER") // PLATFORM_ADMIN | ORGANIZER | TEAM_MEMBER | STAFF | ATTENDEE
+  emailVerified Boolean  @default(false)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  memberships   OrganizationMember[]
+  participants  Participant[]
+  auditLogs     AuditLog[]
+  notifications Notification[]
+}
+
+model Organization {
+  id          String   @id @default(cuid())
+  name        String
+  slug        String   @unique
+  logoUrl     String?
+  website     String?
+  plan        String   @default("STARTER") // STARTER | GROWTH | SCALE | ENTERPRISE
+  brandColor  String   @default("#4f46e5")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  members      OrganizationMember[]
+  events       Event[]
+  integrations Integration[]
+  webhooks     Webhook[]
+  auditLogs    AuditLog[]
+}
+
+model OrganizationMember {
+  id             String   @id @default(cuid())
+  organizationId String
+  userId         String
+  role           String   @default("TEAM_MEMBER") // OWNER | ADMIN | TEAM_MEMBER | STAFF
+  createdAt      DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, userId])
+  @@index([userId])
+}
+
+// --- Events & builder -----------------------------------------------------
+
+model Event {
+  id             String   @id @default(cuid())
+  organizationId String
+  name           String
+  slug           String   @unique
+  tagline        String?
+  description    String?
+  type           String   @default("CONFERENCE") // CONFERENCE | EXPO | TRADE_SHOW | NETWORKING | INVESTOR | MASTERMIND | SUMMIT | COMMUNITY
+  status         String   @default("DRAFT")       // DRAFT | PUBLISHED | LIVE | ENDED | ARCHIVED
+  format         String   @default("IN_PERSON")   // IN_PERSON | VIRTUAL | HYBRID
+  startsAt       DateTime?
+  endsAt         DateTime?
+  timezone       String   @default("UTC")
+  venueName      String?
+  venueAddress   String?
+  city           String?
+  country        String?
+  coverImageUrl  String?
+  brandColor     String   @default("#4f46e5")
+  seoTitle       String?
+  seoDescription String?
+  capacity       Int?
+  matchRules     String?  // JSON: organizer-controlled matchmaking rules
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization     Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  pages            EventPage[]
+  tickets          Ticket[]
+  coupons          Coupon[]
+  registrations    Registration[]
+  orders           Order[]
+  participants     Participant[]
+  companies        Company[]
+  speakers         Speaker[]
+  sponsors         Sponsor[]
+  exhibitors       Exhibitor[]
+  marketplacePosts MarketplacePost[]
+  sessions         Session[]
+  tracks           SessionTrack[]
+  meetingSlots     MeetingSlot[]
+  meetingLocations MeetingLocation[]
+  meetings         Meeting[]
+  matchScores      MatchScore[]
+  conversations    Conversation[]
+  emailCampaigns   EmailCampaign[]
+  surveys          Survey[]
+  reports          Report[]
+  leads            Lead[]
+  checkIns         CheckIn[]
+  badges           Badge[]
+
+  @@index([organizationId])
+}
+
+model EventPage {
+  id        String   @id @default(cuid())
+  eventId   String
+  key       String   // home | agenda | speakers | sponsors | exhibitors | marketplace | tickets | custom slug
+  title     String
+  isHome    Boolean  @default(false)
+  published Boolean  @default(false)
+  navOrder  Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  event    Event          @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  sections EventSection[]
+
+  @@unique([eventId, key])
+}
+
+model EventSection {
+  id        String   @id @default(cuid())
+  pageId    String
+  type      String   // hero | richtext | speakers | sponsors | agenda | tickets | marketplace | cta | gallery | faq
+  order     Int      @default(0)
+  config    String   @default("{}") // JSON: section content & style
+  createdAt DateTime @default(now())
+
+  page EventPage @relation(fields: [pageId], references: [id], onDelete: Cascade)
+
+  @@index([pageId])
+}
+
+// --- Registration, tickets, payments --------------------------------------
+
+model Ticket {
+  id          String   @id @default(cuid())
+  eventId     String
+  name        String
+  description String?
+  type        String   @default("PAID") // FREE | PAID | VIP | GROUP
+  priceCents  Int      @default(0)
+  currency    String   @default("USD")
+  quantity    Int?
+  sold        Int      @default(0)
+  earlyBird   Boolean  @default(false)
+  earlyBirdPriceCents Int?
+  earlyBirdEndsAt     DateTime?
+  requiresApproval    Boolean @default(false)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+
+  event         Event          @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  registrations Registration[]
+}
+
+model Coupon {
+  id            String   @id @default(cuid())
+  eventId       String
+  code          String
+  percentOff    Int?
+  amountOffCents Int?
+  maxRedemptions Int?
+  redemptions   Int      @default(0)
+  expiresAt     DateTime?
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@unique([eventId, code])
+}
+
+model Registration {
+  id         String   @id @default(cuid())
+  eventId    String
+  ticketId   String?
+  email      String
+  firstName  String
+  lastName   String
+  status     String   @default("CONFIRMED") // PENDING | CONFIRMED | CHECKED_IN | CANCELED | WAITLISTED
+  answers    String   @default("{}") // JSON: custom registration question answers
+  qrToken    String   @unique @default(cuid())
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  event       Event        @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  ticket      Ticket?      @relation(fields: [ticketId], references: [id])
+  participant Participant?
+  checkIn     CheckIn?
+  badge       Badge?
+  order       Order?       @relation(fields: [orderId], references: [id])
+  orderId     String?
+
+  @@index([eventId])
+  @@index([status])
+}
+
+model Order {
+  id           String   @id @default(cuid())
+  eventId      String
+  email        String
+  subtotalCents Int     @default(0)
+  discountCents Int     @default(0)
+  totalCents   Int      @default(0)
+  currency     String   @default("USD")
+  status       String   @default("PAID") // PENDING | PAID | REFUNDED | FAILED
+  invoiceNumber String  @unique @default(cuid())
+  createdAt    DateTime @default(now())
+
+  event         Event          @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  payment       Payment?
+  registrations Registration[]
+}
+
+model Payment {
+  id              String   @id @default(cuid())
+  orderId         String   @unique
+  provider        String   @default("stripe")
+  providerRef     String?
+  amountCents     Int
+  currency        String   @default("USD")
+  status          String   @default("SUCCEEDED") // PENDING | SUCCEEDED | REFUNDED | FAILED
+  refundedCents   Int      @default(0)
+  createdAt       DateTime @default(now())
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+}
+
+model CheckIn {
+  id             String   @id @default(cuid())
+  eventId        String
+  registrationId String   @unique
+  method         String   @default("QR") // QR | MANUAL | KIOSK
+  staffName      String?
+  checkedInAt    DateTime @default(now())
+
+  event        Event        @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  registration Registration @relation(fields: [registrationId], references: [id], onDelete: Cascade)
+}
+
+model Badge {
+  id             String   @id @default(cuid())
+  eventId        String
+  registrationId String   @unique
+  qrToken        String   @unique @default(cuid())
+  title          String?
+  company        String?
+  createdAt      DateTime @default(now())
+
+  event        Event        @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  registration Registration @relation(fields: [registrationId], references: [id], onDelete: Cascade)
+}
+
+// --- Profiles -------------------------------------------------------------
+
+model Participant {
+  id             String   @id @default(cuid())
+  eventId        String
+  userId         String?
+  registrationId String?  @unique
+  name           String
+  email          String
+  photoUrl       String?
+  title          String?
+  companyName    String?
+  industry       String?
+  location       String?
+  bio            String?
+  goals          String?  // goals for attending
+  lookingFor     String?
+  offering       String?
+  availability   String   @default("[]")  // JSON: meeting availability slots
+  interestTags   String   @default("[]")  // JSON: string[]
+  socialLinks    String   @default("{}")  // JSON
+  website        String?
+  matchPrefs     String   @default("{}")  // JSON: AI match preferences
+  intentScore    Int      @default(0)
+  visibility     String   @default("PUBLIC") // PUBLIC | CONNECTIONS | PRIVATE
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  event             Event                 @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  user              User?                 @relation(fields: [userId], references: [id])
+  registration      Registration?         @relation(fields: [registrationId], references: [id])
+  meetingParts      MeetingParticipant[]
+  scoresAsA         MatchScore[]          @relation("MatchA")
+  scoresAsB         MatchScore[]          @relation("MatchB")
+  conversationMembers ConversationMember[]
+
+  @@index([eventId])
+}
+
+model Company {
+  id           String   @id @default(cuid())
+  eventId      String
+  name         String
+  logoUrl      String?
+  description  String?
+  industry     String?
+  website      String?
+  products     String?  // products or services
+  lookingFor   String?
+  offering     String?
+  boothNumber  String?
+  createdAt    DateTime @default(now())
+
+  event     Event      @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  sponsor   Sponsor?
+  exhibitor Exhibitor?
+  leads     Lead[]
+
+  @@index([eventId])
+}
+
+model Speaker {
+  id                 String   @id @default(cuid())
+  eventId            String
+  name               String
+  photoUrl           String?
+  bio                String?
+  title              String?
+  companyName        String?
+  sessionTitle       String?
+  sessionDescription String?
+  resources          String   @default("[]") // JSON: links/files
+  socialLinks        String   @default("{}")
+  qaModeration       Boolean  @default(false)
+  featured           Boolean  @default(false)
+  createdAt          DateTime @default(now())
+
+  event    Event     @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  sessions Session[]
+
+  @@index([eventId])
+}
+
+model Sponsor {
+  id          String   @id @default(cuid())
+  eventId     String
+  companyId   String?  @unique
+  name        String
+  logoUrl     String?
+  level       String   @default("GOLD") // PLATINUM | GOLD | SILVER | BRONZE | PARTNER
+  description String?
+  website     String?
+  visible     Boolean  @default(true)
+  contentLibrary String @default("[]") // JSON
+  valueScore  Int      @default(0)
+  createdAt   DateTime @default(now())
+
+  event   Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  company Company? @relation(fields: [companyId], references: [id])
+  leads   Lead[]
+
+  @@index([eventId])
+}
+
+model Exhibitor {
+  id          String   @id @default(cuid())
+  eventId     String
+  companyId   String?  @unique
+  name        String
+  logoUrl     String?
+  boothNumber String?
+  description String?
+  website     String?
+  visible     Boolean  @default(true)
+  createdAt   DateTime @default(now())
+
+  event   Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  company Company? @relation(fields: [companyId], references: [id])
+  leads   Lead[]
+
+  @@index([eventId])
+}
+
+model MarketplacePost {
+  id          String   @id @default(cuid())
+  eventId     String
+  authorName  String
+  title       String
+  kind        String   @default("OFFER") // OFFER | NEED
+  category    String?
+  description String?
+  audience    String?
+  keywords    String   @default("[]") // JSON
+  media       String   @default("[]") // JSON
+  sponsored   Boolean  @default(false)
+  createdAt   DateTime @default(now())
+
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@index([eventId])
+}
+
+// --- Agenda & sessions ----------------------------------------------------
+
+model SessionTrack {
+  id       String  @id @default(cuid())
+  eventId  String
+  name     String
+  color    String  @default("#4f46e5")
+
+  event    Event     @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  sessions Session[]
+}
+
+model Session {
+  id          String   @id @default(cuid())
+  eventId     String
+  trackId     String?
+  speakerId   String?
+  title       String
+  description String?
+  startsAt    DateTime?
+  endsAt      DateTime?
+  room        String?
+  capacity    Int?
+  format      String   @default("TALK") // TALK | PANEL | WORKSHOP | BREAKOUT | KEYNOTE
+  isBreakout  Boolean  @default(false)
+  streamUrl   String?
+  replayUrl   String?
+  files       String   @default("[]") // JSON
+  createdAt   DateTime @default(now())
+
+  event         Event                 @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  track         SessionTrack?         @relation(fields: [trackId], references: [id])
+  speaker       Speaker?              @relation(fields: [speakerId], references: [id])
+  registrations SessionRegistration[]
+
+  @@index([eventId])
+}
+
+model SessionRegistration {
+  id         String   @id @default(cuid())
+  sessionId  String
+  attendeeEmail String
+  attendeeName  String
+  checkedIn  Boolean  @default(false)
+  createdAt  DateTime @default(now())
+
+  session Session @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@unique([sessionId, attendeeEmail])
+}
+
+// --- Meetings & networking ------------------------------------------------
+
+model MeetingLocation {
+  id       String  @id @default(cuid())
+  eventId  String
+  name     String  // table / room / area
+  kind     String  @default("TABLE") // TABLE | ROOM | AREA | VIRTUAL
+  capacity Int     @default(2)
+
+  event    Event     @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  meetings Meeting[]
+}
+
+model MeetingSlot {
+  id        String   @id @default(cuid())
+  eventId   String
+  startsAt  DateTime
+  endsAt    DateTime
+  label     String?
+
+  event    Event     @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  meetings Meeting[]
+}
+
+model Meeting {
+  id          String   @id @default(cuid())
+  eventId     String
+  slotId      String?
+  locationId  String?
+  title       String?
+  type        String   @default("ONE_TO_ONE") // ONE_TO_ONE | GROUP | MANY_TO_MANY
+  status      String   @default("REQUESTED")  // REQUESTED | APPROVED | DECLINED | RESCHEDULE | COMPLETED | NO_SHOW | CANCELED
+  mode        String   @default("IN_PERSON")  // IN_PERSON | ONLINE
+  videoUrl    String?
+  declineReason String?
+  goal        String?
+  noShow      Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  event        Event                @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  slot         MeetingSlot?         @relation(fields: [slotId], references: [id])
+  location     MeetingLocation?     @relation(fields: [locationId], references: [id])
+  participants MeetingParticipant[]
+  ratings      Rating[]
+
+  @@index([eventId])
+  @@index([status])
+}
+
+model MeetingParticipant {
+  id            String   @id @default(cuid())
+  meetingId     String
+  participantId String
+  role          String   @default("REQUESTER") // REQUESTER | INVITEE
+  response      String   @default("PENDING")   // PENDING | ACCEPTED | DECLINED
+
+  meeting     Meeting     @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+  participant Participant @relation(fields: [participantId], references: [id], onDelete: Cascade)
+
+  @@unique([meetingId, participantId])
+}
+
+model MatchScore {
+  id            String   @id @default(cuid())
+  eventId       String
+  participantAId String
+  participantBId String
+  score         Int      @default(0) // 0-100
+  reason        String?
+  mutualInterests String @default("[]") // JSON
+  fitType       String?  // BUYER_SELLER | INVESTOR_FOUNDER | SPONSOR_ATTENDEE | AUTHOR_READER | COACH_CLIENT | PEER
+  suggestedMessage String?
+  suggestedGoal String?
+  overridden    Boolean  @default(false)
+  createdAt     DateTime @default(now())
+
+  event        Event       @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  participantA Participant @relation("MatchA", fields: [participantAId], references: [id], onDelete: Cascade)
+  participantB Participant @relation("MatchB", fields: [participantBId], references: [id], onDelete: Cascade)
+
+  @@unique([participantAId, participantBId])
+  @@index([eventId])
+}
+
+// --- Conversations --------------------------------------------------------
+
+model Conversation {
+  id        String   @id @default(cuid())
+  eventId   String
+  kind      String   @default("PRIVATE") // PRIVATE | GROUP
+  title     String?
+  createdAt DateTime @default(now())
+
+  event    Event                 @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  members  ConversationMember[]
+  messages ConversationMessage[]
+
+  @@index([eventId])
+}
+
+model ConversationMember {
+  id             String @id @default(cuid())
+  conversationId String
+  participantId  String
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  participant  Participant  @relation(fields: [participantId], references: [id], onDelete: Cascade)
+
+  @@unique([conversationId, participantId])
+}
+
+model ConversationMessage {
+  id             String   @id @default(cuid())
+  conversationId String
+  senderName     String
+  body           String
+  flagged        Boolean  @default(false)
+  createdAt      DateTime @default(now())
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId])
+}
+
+// --- Communication --------------------------------------------------------
+
+model EmailCampaign {
+  id          String   @id @default(cuid())
+  eventId     String
+  name        String
+  subject     String
+  body        String   @default("")
+  segment     String   @default("ALL") // ALL | REGISTERED | PENDING | CHECKED_IN | SPEAKERS | SPONSORS
+  status      String   @default("DRAFT") // DRAFT | SCHEDULED | SENT
+  scheduledAt DateTime?
+  sentAt      DateTime?
+  recipients  Int      @default(0)
+  opens       Int      @default(0)
+  clicks      Int      @default(0)
+  createdAt   DateTime @default(now())
+
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@index([eventId])
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  title     String
+  body      String?
+  kind      String   @default("INFO") // INFO | MEETING | REGISTRATION | SYSTEM
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+// --- Surveys, ratings, reporting ------------------------------------------
+
+model Survey {
+  id        String   @id @default(cuid())
+  eventId   String
+  title     String
+  kind      String   @default("POST_EVENT") // POST_EVENT | SESSION | SPONSOR | NPS
+  status    String   @default("DRAFT")      // DRAFT | LIVE | CLOSED
+  createdAt DateTime @default(now())
+
+  event     Event            @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  questions SurveyQuestion[]
+  responses SurveyResponse[]
+}
+
+model SurveyQuestion {
+  id       String @id @default(cuid())
+  surveyId String
+  prompt   String
+  type     String @default("RATING") // RATING | TEXT | CHOICE | NPS
+  options  String @default("[]")     // JSON
+  order    Int    @default(0)
+
+  survey    Survey           @relation(fields: [surveyId], references: [id], onDelete: Cascade)
+  responses SurveyResponse[]
+}
+
+model SurveyResponse {
+  id         String   @id @default(cuid())
+  surveyId   String
+  questionId String
+  respondent String?
+  value      String   // answer (rating number, text, or choice)
+  createdAt  DateTime @default(now())
+
+  survey   Survey         @relation(fields: [surveyId], references: [id], onDelete: Cascade)
+  question SurveyQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@index([surveyId])
+}
+
+model Rating {
+  id        String   @id @default(cuid())
+  meetingId String?
+  kind      String   @default("MEETING") // MEETING | SESSION | SPEAKER | SPONSOR
+  refId     String?  // session/speaker/sponsor id depending on kind
+  score     Int      // 1-5
+  comment   String?
+  createdAt DateTime @default(now())
+
+  meeting Meeting? @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+}
+
+model Report {
+  id        String   @id @default(cuid())
+  eventId   String
+  kind      String   // REVENUE | TICKETS | SPONSOR_ROI | EXHIBITOR_ROI | NPS | AI_SUMMARY
+  title     String
+  data      String   @default("{}") // JSON snapshot
+  createdAt DateTime @default(now())
+
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@index([eventId])
+}
+
+model Lead {
+  id          String   @id @default(cuid())
+  eventId     String
+  companyId   String?
+  sponsorId   String?
+  exhibitorId String?
+  name        String
+  email       String?
+  company     String?
+  source      String   @default("BOOTH") // BOOTH | QR_SCAN | MEETING | SESSION | MARKETPLACE
+  quality     String   @default("WARM")  // HOT | WARM | COLD
+  notes       String?
+  createdAt   DateTime @default(now())
+
+  event     Event      @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  companyRel Company?  @relation(fields: [companyId], references: [id])
+  sponsor   Sponsor?   @relation(fields: [sponsorId], references: [id])
+  exhibitor Exhibitor? @relation(fields: [exhibitorId], references: [id])
+
+  @@index([eventId])
+}
+
+// --- Integrations & governance --------------------------------------------
+
+model Integration {
+  id             String   @id @default(cuid())
+  organizationId String
+  provider       String   // hubspot | salesforce | zoho | airtable | zapier
+  status         String   @default("DISCONNECTED") // CONNECTED | DISCONNECTED
+  config         String   @default("{}") // JSON
+  createdAt      DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+}
+
+model Webhook {
+  id             String   @id @default(cuid())
+  organizationId String
+  url            String
+  event          String   // e.g. registration.created, meeting.booked
+  secret         String   @default(cuid())
+  active         Boolean  @default(true)
+  createdAt      DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+}
+
+model AuditLog {
+  id             String   @id @default(cuid())
+  organizationId String?
+  userId         String?
+  action         String
+  entity         String?
+  entityId       String?
+  metadata       String   @default("{}") // JSON
+  createdAt      DateTime @default(now())
+
+  organization Organization? @relation(fields: [organizationId], references: [id])
+  user         User?         @relation(fields: [userId], references: [id])
+
+  @@index([organizationId])
+}
