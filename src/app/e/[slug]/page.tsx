@@ -6,7 +6,6 @@ import {
   Presentation,
   Sparkles,
   Clock,
-  ShieldCheck,
 } from "lucide-react";
 import { db } from "@/lib/db";
 import { cn, formatMoney, formatDate, formatTime } from "@/lib/utils";
@@ -22,8 +21,9 @@ import { ButtonLink } from "@/components/ui/button";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
-import { Field, Input, Select } from "@/components/ui/input";
 import { Avatar } from "@/components/ui/misc";
+import { RegistrationForm } from "@/components/event/registration-form";
+import { registerForEvent } from "./register/actions";
 
 async function loadEvent(slug: string) {
   return db.event.findUnique({
@@ -345,41 +345,18 @@ export default async function PublicEventPage({
                 <p className="mt-1 text-sm text-muted-foreground">
                   We&apos;ll send your ticket and event details by email.
                 </p>
-                <form className="mt-6 space-y-4">
-                  <div className="grid gap-4 sm:grid-cols-2">
-                    <Field label="First name">
-                      <Input placeholder="Jordan" name="firstName" />
-                    </Field>
-                    <Field label="Last name">
-                      <Input placeholder="Rivera" name="lastName" />
-                    </Field>
-                  </div>
-                  <Field label="Email">
-                    <Input type="email" placeholder="you@company.com" name="email" />
-                  </Field>
-                  <Field label="Ticket">
-                    <Select name="ticket" defaultValue="">
-                      <option value="" disabled>
-                        Choose a ticket
-                      </option>
-                      {event.tickets.map((ticket) => (
-                        <option key={ticket.id} value={ticket.id}>
-                          {ticket.name} —{" "}
-                          {ticket.priceCents > 0
-                            ? formatMoney(ticket.priceCents, ticket.currency)
-                            : "Free"}
-                        </option>
-                      ))}
-                    </Select>
-                  </Field>
-                  <Button type="button" size="lg" className="w-full">
-                    Complete registration
-                  </Button>
-                  <p className="flex items-center justify-center gap-1.5 text-xs text-muted-foreground">
-                    <ShieldCheck className="size-3.5" /> Secure checkout · GDPR &
-                    CCPA-ready
-                  </p>
-                </form>
+                <RegistrationForm
+                  slug={event.slug}
+                  action={registerForEvent}
+                  tickets={event.tickets.map((t) => ({
+                    id: t.id,
+                    name: t.name,
+                    priceCents: t.priceCents,
+                    currency: t.currency,
+                    earlyBird: t.earlyBird,
+                    earlyBirdPriceCents: t.earlyBirdPriceCents,
+                  }))}
+                />
               </CardContent>
             </Card>
           </div>
