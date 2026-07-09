@@ -21,8 +21,10 @@ import { DeleteButton } from "@/components/ui/delete-button";
 import { Table, THead, TBody, TR, TH, TD } from "@/components/ui/table";
 import {
   createMeetingSlot,
+  updateMeetingSlot,
   deleteMeetingSlot,
   createMeetingLocation,
+  updateMeetingLocation,
   deleteMeetingLocation,
 } from "../manage-actions";
 
@@ -61,6 +63,34 @@ export default async function MeetingsPage({
   const noShows = meetings.filter((m) => m.noShow).length;
   const noShowRate = pct(noShows, total);
 
+  const slotFields = (s?: (typeof slots)[number]) => (
+    <>
+      <input type="hidden" name="eventId" value={id} />
+      {s && <input type="hidden" name="id" value={s.id} />}
+      <Field label="Label">
+        <Input name="label" placeholder="Slot 1" defaultValue={s?.label ?? ""} />
+      </Field>
+      <div className="grid gap-4 sm:grid-cols-2">
+        <Field label="Starts">
+          <Input
+            name="startsAt"
+            type="datetime-local"
+            defaultValue={s?.startsAt ? new Date(s.startsAt).toISOString().slice(0, 16) : ""}
+            required
+          />
+        </Field>
+        <Field label="Ends">
+          <Input
+            name="endsAt"
+            type="datetime-local"
+            defaultValue={s?.endsAt ? new Date(s.endsAt).toISOString().slice(0, 16) : ""}
+            required
+          />
+        </Field>
+      </div>
+    </>
+  );
+
   const newSlotDialog = (
     <FormDialog
       buttonLabel="Add slot"
@@ -70,19 +100,31 @@ export default async function MeetingsPage({
       submitLabel="Add slot"
       buttonSize="sm"
     >
+      {slotFields()}
+    </FormDialog>
+  );
+
+  const locationFields = (l?: (typeof locations)[number]) => (
+    <>
       <input type="hidden" name="eventId" value={id} />
-      <Field label="Label">
-        <Input name="label" placeholder="Slot 1" />
+      {l && <input type="hidden" name="id" value={l.id} />}
+      <Field label="Name">
+        <Input name="name" placeholder="Table 1" defaultValue={l?.name ?? ""} required />
       </Field>
       <div className="grid gap-4 sm:grid-cols-2">
-        <Field label="Starts">
-          <Input name="startsAt" type="datetime-local" required />
+        <Field label="Kind">
+          <Select name="kind" defaultValue={l?.kind ?? "TABLE"}>
+            <option value="TABLE">Table</option>
+            <option value="ROOM">Room</option>
+            <option value="AREA">Area</option>
+            <option value="VIRTUAL">Virtual</option>
+          </Select>
         </Field>
-        <Field label="Ends">
-          <Input name="endsAt" type="datetime-local" required />
+        <Field label="Capacity">
+          <Input name="capacity" type="number" min="1" defaultValue={l?.capacity != null ? String(l.capacity) : "2"} />
         </Field>
       </div>
-    </FormDialog>
+    </>
   );
 
   const newLocationDialog = (
@@ -94,23 +136,7 @@ export default async function MeetingsPage({
       submitLabel="Add location"
       buttonSize="sm"
     >
-      <input type="hidden" name="eventId" value={id} />
-      <Field label="Name">
-        <Input name="name" placeholder="Table 1" required />
-      </Field>
-      <div className="grid gap-4 sm:grid-cols-2">
-        <Field label="Kind">
-          <Select name="kind" defaultValue="TABLE">
-            <option value="TABLE">Table</option>
-            <option value="ROOM">Room</option>
-            <option value="AREA">Area</option>
-            <option value="VIRTUAL">Virtual</option>
-          </Select>
-        </Field>
-        <Field label="Capacity">
-          <Input name="capacity" type="number" min="1" defaultValue="2" />
-        </Field>
-      </div>
+      {locationFields()}
     </FormDialog>
   );
 
@@ -239,6 +265,15 @@ export default async function MeetingsPage({
                       <span className="text-muted-foreground">
                         {formatTime(s.startsAt)} – {formatTime(s.endsAt)}
                       </span>
+                      <FormDialog
+                        mode="edit"
+                        buttonLabel={`Edit ${s.label ?? "slot"}`}
+                        title="Edit meeting slot"
+                        action={updateMeetingSlot}
+                        submitLabel="Save changes"
+                      >
+                        {slotFields(s)}
+                      </FormDialog>
                       <DeleteButton action={deleteMeetingSlot} id={s.id} eventId={id} confirmText="Delete this slot?" />
                     </div>
                   </div>
@@ -269,6 +304,15 @@ export default async function MeetingsPage({
                     </div>
                     <div className="flex items-center gap-1">
                       <Badge tone="neutral">Seats {l.capacity}</Badge>
+                      <FormDialog
+                        mode="edit"
+                        buttonLabel={`Edit ${l.name}`}
+                        title="Edit location / table"
+                        action={updateMeetingLocation}
+                        submitLabel="Save changes"
+                      >
+                        {locationFields(l)}
+                      </FormDialog>
                       <DeleteButton action={deleteMeetingLocation} id={l.id} eventId={id} confirmText="Delete this location?" />
                     </div>
                   </div>

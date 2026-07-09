@@ -8,7 +8,7 @@ import { Input, Field, Textarea } from "@/components/ui/input";
 import { FormDialog } from "@/components/ui/form-dialog";
 import { DeleteButton } from "@/components/ui/delete-button";
 import { Avatar, StatCard, EmptyState, Separator } from "@/components/ui/misc";
-import { createCompany, deleteCompany } from "../manage-actions";
+import { createCompany, updateCompany, deleteCompany } from "../manage-actions";
 
 export default async function CompaniesPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -17,40 +17,41 @@ export default async function CompaniesPage({ params }: { params: Promise<{ id: 
   const companies = await db.company.findMany({ where: { eventId: id } });
   const withBooth = companies.filter((c) => Boolean(c.boothNumber)).length;
 
-  const companyFields = (
+  const companyFields = (r?: (typeof companies)[number]) => (
     <>
       <input type="hidden" name="eventId" value={id} />
+      {r && <input type="hidden" name="id" value={r.id} />}
       <Field label="Company name">
-        <Input name="name" placeholder="Northwind Labs" required />
+        <Input name="name" placeholder="Northwind Labs" defaultValue={r?.name ?? ""} required />
       </Field>
       <div className="grid gap-4 sm:grid-cols-2">
         <Field label="Industry">
-          <Input name="industry" placeholder="SaaS" />
+          <Input name="industry" placeholder="SaaS" defaultValue={r?.industry ?? ""} />
         </Field>
         <Field label="Booth number">
-          <Input name="boothNumber" placeholder="B12" />
+          <Input name="boothNumber" placeholder="B12" defaultValue={r?.boothNumber ?? ""} />
         </Field>
       </div>
       <Field label="Website">
-        <Input name="website" type="url" placeholder="https://example.com" />
+        <Input name="website" type="url" placeholder="https://example.com" defaultValue={r?.website ?? ""} />
       </Field>
       <div className="grid gap-4 sm:grid-cols-2">
         <Field label="Looking for">
-          <Input name="lookingFor" placeholder="Enterprise buyers" />
+          <Input name="lookingFor" placeholder="Enterprise buyers" defaultValue={r?.lookingFor ?? ""} />
         </Field>
         <Field label="Offering">
-          <Input name="offering" placeholder="SaaS platform" />
+          <Input name="offering" placeholder="SaaS platform" defaultValue={r?.offering ?? ""} />
         </Field>
       </div>
       <Field label="Description">
-        <Textarea name="description" rows={2} placeholder="What they do." />
+        <Textarea name="description" rows={2} placeholder="What they do." defaultValue={r?.description ?? ""} />
       </Field>
     </>
   );
 
   const newCompanyDialog = (
     <FormDialog buttonLabel="Add company" title="Add company" action={createCompany} submitLabel="Add company">
-      {companyFields}
+      {companyFields()}
     </FormDialog>
   );
 
@@ -84,7 +85,7 @@ export default async function CompaniesPage({ params }: { params: Promise<{ id: 
           description="Add the organizations exhibiting or participating in your event."
           action={
             <FormDialog buttonLabel="Add company" title="Add company" action={createCompany} submitLabel="Add company">
-              {companyFields}
+              {companyFields()}
             </FormDialog>
           }
         />
@@ -102,12 +103,23 @@ export default async function CompaniesPage({ params }: { params: Promise<{ id: 
                       {c.boothNumber && <Badge tone="primary">Booth {c.boothNumber}</Badge>}
                     </div>
                   </div>
-                  <DeleteButton
-                    action={deleteCompany}
-                    id={c.id}
-                    eventId={id}
-                    confirmText={`Delete "${c.name}"? This can't be undone.`}
-                  />
+                  <div className="flex items-center gap-1">
+                    <FormDialog
+                      mode="edit"
+                      buttonLabel={`Edit ${c.name}`}
+                      title="Edit company"
+                      action={updateCompany}
+                      submitLabel="Save changes"
+                    >
+                      {companyFields(c)}
+                    </FormDialog>
+                    <DeleteButton
+                      action={deleteCompany}
+                      id={c.id}
+                      eventId={id}
+                      confirmText={`Delete "${c.name}"? This can't be undone.`}
+                    />
+                  </div>
                 </div>
 
                 {(c.lookingFor || c.offering) && (

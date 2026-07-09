@@ -10,7 +10,7 @@ import { FormDialog } from "@/components/ui/form-dialog";
 import { DeleteButton } from "@/components/ui/delete-button";
 import { Table, THead, TBody, TR, TH, TD } from "@/components/ui/table";
 import { LEAD_QUALITY } from "@/lib/constants";
-import { createExhibitor, deleteExhibitor } from "../manage-actions";
+import { createExhibitor, updateExhibitor, deleteExhibitor } from "../manage-actions";
 
 export default async function ExhibitorsPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -31,27 +31,28 @@ export default async function ExhibitorsPage({ params }: { params: Promise<{ id:
     db.lead.count({ where: { eventId: id } }),
   ]);
 
-  const exhibitorFields = (
+  const exhibitorFields = (r?: (typeof exhibitors)[number]) => (
     <>
       <input type="hidden" name="eventId" value={id} />
+      {r && <input type="hidden" name="id" value={r.id} />}
       <Field label="Exhibitor name">
-        <Input name="name" placeholder="Orbit Robotics" required />
+        <Input name="name" placeholder="Orbit Robotics" defaultValue={r?.name ?? ""} required />
       </Field>
       <Field label="Booth number">
-        <Input name="boothNumber" placeholder="B13" />
+        <Input name="boothNumber" placeholder="B13" defaultValue={r?.boothNumber ?? ""} />
       </Field>
       <Field label="Website">
-        <Input name="website" type="url" placeholder="https://example.com" />
+        <Input name="website" type="url" placeholder="https://example.com" defaultValue={r?.website ?? ""} />
       </Field>
       <Field label="Description">
-        <Textarea name="description" rows={2} placeholder="What they're showcasing." />
+        <Textarea name="description" rows={2} placeholder="What they're showcasing." defaultValue={r?.description ?? ""} />
       </Field>
     </>
   );
 
   const newExhibitorDialog = (
     <FormDialog buttonLabel="Add exhibitor" title="Add exhibitor" action={createExhibitor} submitLabel="Add exhibitor">
-      {exhibitorFields}
+      {exhibitorFields()}
     </FormDialog>
   );
 
@@ -90,7 +91,7 @@ export default async function ExhibitorsPage({ params }: { params: Promise<{ id:
                 description="Add exhibitors to assign booths and start capturing leads on the floor."
                 action={
                   <FormDialog buttonLabel="Add exhibitor" title="Add exhibitor" action={createExhibitor} submitLabel="Add exhibitor">
-                    {exhibitorFields}
+                    {exhibitorFields()}
                   </FormDialog>
                 }
               />
@@ -127,7 +128,16 @@ export default async function ExhibitorsPage({ params }: { params: Promise<{ id:
                     </TD>
                     <TD className="font-medium">{x._count.leads}</TD>
                     <TD>
-                      <div className="flex justify-end">
+                      <div className="flex items-center justify-end gap-1">
+                        <FormDialog
+                          mode="edit"
+                          buttonLabel={`Edit ${x.name}`}
+                          title="Edit exhibitor"
+                          action={updateExhibitor}
+                          submitLabel="Save changes"
+                        >
+                          {exhibitorFields(x)}
+                        </FormDialog>
                         <DeleteButton
                           action={deleteExhibitor}
                           id={x.id}

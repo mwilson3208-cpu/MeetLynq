@@ -9,7 +9,7 @@ import { Input, Field, Select, Textarea } from "@/components/ui/input";
 import { FormDialog } from "@/components/ui/form-dialog";
 import { DeleteButton } from "@/components/ui/delete-button";
 import { Avatar, EmptyState, Separator } from "@/components/ui/misc";
-import { createMarketplacePost, deleteMarketplacePost } from "../manage-actions";
+import { createMarketplacePost, updateMarketplacePost, deleteMarketplacePost } from "../manage-actions";
 
 export default async function MarketplacePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -22,44 +22,45 @@ export default async function MarketplacePage({ params }: { params: Promise<{ id
 
   const filters = ["All", "Offers", "Needs"];
 
-  const postFields = (
+  const postFields = (p?: (typeof posts)[number]) => (
     <>
       <input type="hidden" name="eventId" value={id} />
+      {p && <input type="hidden" name="id" value={p.id} />}
       <Field label="Title">
-        <Input name="title" placeholder="Offering pilot pricing for startups" required />
+        <Input name="title" placeholder="Offering pilot pricing for startups" defaultValue={p?.title ?? ""} required />
       </Field>
       <div className="grid gap-4 sm:grid-cols-2">
         <Field label="Type">
-          <Select name="kind" defaultValue="OFFER">
+          <Select name="kind" defaultValue={p?.kind ?? "OFFER"}>
             <option value="OFFER">Offer</option>
             <option value="NEED">Need</option>
           </Select>
         </Field>
         <Field label="Category">
-          <Input name="category" placeholder="Partnership" />
+          <Input name="category" placeholder="Partnership" defaultValue={p?.category ?? ""} />
         </Field>
       </div>
       <Field label="Posted by">
-        <Input name="authorName" placeholder="Organizer" />
+        <Input name="authorName" placeholder="Organizer" defaultValue={p?.authorName ?? ""} />
       </Field>
       <Field label="Target audience">
-        <Input name="audience" placeholder="Early-stage founders" />
+        <Input name="audience" placeholder="Early-stage founders" defaultValue={p?.audience ?? ""} />
       </Field>
       <Field label="Keywords" hint="Comma-separated.">
-        <Input name="keywords" placeholder="GTM, Growth" />
+        <Input name="keywords" placeholder="GTM, Growth" defaultValue={p ? parseJson<string[]>(p.keywords, []).join(", ") : ""} />
       </Field>
       <Field label="Description">
-        <Textarea name="description" rows={2} placeholder="Details of the offer or need." />
+        <Textarea name="description" rows={2} placeholder="Details of the offer or need." defaultValue={p?.description ?? ""} />
       </Field>
       <label className="flex items-center gap-2 text-sm">
-        <input type="checkbox" name="sponsored" className="size-4 accent-[hsl(243_75%_59%)]" /> Mark as sponsored
+        <input type="checkbox" name="sponsored" defaultChecked={p?.sponsored ?? false} className="size-4 accent-[hsl(243_75%_59%)]" /> Mark as sponsored
       </label>
     </>
   );
 
   const newPostDialog = (
     <FormDialog buttonLabel="Create post" title="Create marketplace post" action={createMarketplacePost} submitLabel="Create post">
-      {postFields}
+      {postFields()}
     </FormDialog>
   );
 
@@ -88,7 +89,7 @@ export default async function MarketplacePage({ params }: { params: Promise<{ id
           description="Let attendees post what they're offering or looking for to spark connections."
           action={
             <FormDialog buttonLabel="Create post" title="Create marketplace post" action={createMarketplacePost} submitLabel="Create post">
-              {postFields}
+              {postFields()}
             </FormDialog>
           }
         />
@@ -105,12 +106,23 @@ export default async function MarketplacePage({ params }: { params: Promise<{ id
                       <Badge tone={isOffer ? "primary" : "info"}>{isOffer ? "Offer" : "Need"}</Badge>
                       {post.sponsored && <Badge tone="warning">Sponsored</Badge>}
                     </div>
-                    <DeleteButton
-                      action={deleteMarketplacePost}
-                      id={post.id}
-                      eventId={id}
-                      confirmText={`Delete "${post.title}"?`}
-                    />
+                    <div className="flex items-center gap-1">
+                      <FormDialog
+                        mode="edit"
+                        buttonLabel={`Edit ${post.title}`}
+                        title="Edit marketplace post"
+                        action={updateMarketplacePost}
+                        submitLabel="Save changes"
+                      >
+                        {postFields(post)}
+                      </FormDialog>
+                      <DeleteButton
+                        action={deleteMarketplacePost}
+                        id={post.id}
+                        eventId={id}
+                        confirmText={`Delete "${post.title}"?`}
+                      />
+                    </div>
                   </div>
 
                   <div>

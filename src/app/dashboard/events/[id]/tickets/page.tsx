@@ -16,7 +16,7 @@ import { FormDialog } from "@/components/ui/form-dialog";
 import { DeleteButton } from "@/components/ui/delete-button";
 import { formatMoney, pct } from "@/lib/utils";
 import { TICKET_TYPES, labelOf } from "@/lib/constants";
-import { createTicket, updateTicket, deleteTicket, createCoupon, deleteCoupon } from "../manage-actions";
+import { createTicket, updateTicket, deleteTicket, createCoupon, updateCoupon, deleteCoupon } from "../manage-actions";
 
 const TYPE_TONE: Record<string, "neutral" | "primary" | "success" | "info"> = {
   FREE: "success",
@@ -114,6 +114,43 @@ export default async function TicketsPage({
     </FormDialog>
   );
 
+  const couponFields = (c?: (typeof coupons)[number]) => (
+    <>
+      <input type="hidden" name="eventId" value={id} />
+      {c && <input type="hidden" name="id" value={c.id} />}
+      <Field label="Code" hint="Attendees enter this at checkout.">
+        <Input name="code" placeholder="EARLY25" className="uppercase" defaultValue={c?.code ?? ""} required />
+      </Field>
+      <div className="grid gap-4 sm:grid-cols-2">
+        <Field label="Discount type">
+          <Select name="kind" defaultValue={c ? (c.percentOff != null ? "PERCENT" : "AMOUNT") : "PERCENT"}>
+            <option value="PERCENT">Percentage off</option>
+            <option value="AMOUNT">Fixed amount off (USD)</option>
+          </Select>
+        </Field>
+        <Field label="Value" hint="e.g. 25 for 25% or $25.">
+          <Input
+            name="value"
+            type="number"
+            min="0"
+            step="0.01"
+            placeholder="25"
+            defaultValue={c ? (c.percentOff != null ? String(c.percentOff) : c.amountOffCents != null ? String(c.amountOffCents / 100) : "") : ""}
+            required
+          />
+        </Field>
+      </div>
+      <Field label="Max redemptions" hint="Blank = unlimited.">
+        <Input name="maxRedemptions" type="number" min="0" placeholder="100" defaultValue={c?.maxRedemptions != null ? String(c.maxRedemptions) : ""} />
+      </Field>
+      {c && (
+        <label className="flex items-center gap-2 text-sm">
+          <input type="checkbox" name="isActive" defaultChecked={c.isActive} className="size-4 accent-[hsl(243_75%_59%)]" /> Active
+        </label>
+      )}
+    </>
+  );
+
   const newCouponDialog = (
     <FormDialog
       buttonLabel="New coupon"
@@ -123,24 +160,7 @@ export default async function TicketsPage({
       submitLabel="Create coupon"
       buttonSize="sm"
     >
-      <input type="hidden" name="eventId" value={id} />
-      <Field label="Code" hint="Attendees enter this at checkout.">
-        <Input name="code" placeholder="EARLY25" className="uppercase" required />
-      </Field>
-      <div className="grid gap-4 sm:grid-cols-2">
-        <Field label="Discount type">
-          <Select name="kind" defaultValue="PERCENT">
-            <option value="PERCENT">Percentage off</option>
-            <option value="AMOUNT">Fixed amount off (USD)</option>
-          </Select>
-        </Field>
-        <Field label="Value" hint="e.g. 25 for 25% or $25.">
-          <Input name="value" type="number" min="0" step="0.01" placeholder="25" required />
-        </Field>
-      </div>
-      <Field label="Max redemptions" hint="Blank = unlimited.">
-        <Input name="maxRedemptions" type="number" min="0" placeholder="100" />
-      </Field>
+      {couponFields()}
     </FormDialog>
   );
 
@@ -324,7 +344,17 @@ export default async function TicketsPage({
                       </Badge>
                     </TD>
                     <TD>
-                      <div className="flex justify-end">
+                      <div className="flex items-center justify-end gap-1">
+                        <FormDialog
+                          mode="edit"
+                          buttonLabel={`Edit ${c.code}`}
+                          title="Edit coupon"
+                          description="Update this discount code."
+                          action={updateCoupon}
+                          submitLabel="Save changes"
+                        >
+                          {couponFields(c)}
+                        </FormDialog>
                         <DeleteButton
                           action={deleteCoupon}
                           id={c.id}
