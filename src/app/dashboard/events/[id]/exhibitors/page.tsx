@@ -1,13 +1,16 @@
-import { Store, Plus, Users, Flame } from "lucide-react";
+import { Store, Users, Flame } from "lucide-react";
 import { ExportButton } from "@/components/ui/export-button";
 import { getEventOr404 } from "@/lib/queries";
 import { db } from "@/lib/db";
 import { StatCard, Avatar, EmptyState } from "@/components/ui/misc";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Input, Field, Textarea } from "@/components/ui/input";
+import { FormDialog } from "@/components/ui/form-dialog";
+import { DeleteButton } from "@/components/ui/delete-button";
 import { Table, THead, TBody, TR, TH, TD } from "@/components/ui/table";
 import { LEAD_QUALITY } from "@/lib/constants";
+import { createExhibitor, deleteExhibitor } from "../manage-actions";
 
 export default async function ExhibitorsPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -28,6 +31,30 @@ export default async function ExhibitorsPage({ params }: { params: Promise<{ id:
     db.lead.count({ where: { eventId: id } }),
   ]);
 
+  const exhibitorFields = (
+    <>
+      <input type="hidden" name="eventId" value={id} />
+      <Field label="Exhibitor name">
+        <Input name="name" placeholder="Orbit Robotics" required />
+      </Field>
+      <Field label="Booth number">
+        <Input name="boothNumber" placeholder="B13" />
+      </Field>
+      <Field label="Website">
+        <Input name="website" type="url" placeholder="https://example.com" />
+      </Field>
+      <Field label="Description">
+        <Textarea name="description" rows={2} placeholder="What they're showcasing." />
+      </Field>
+    </>
+  );
+
+  const newExhibitorDialog = (
+    <FormDialog buttonLabel="Add exhibitor" title="Add exhibitor" action={createExhibitor} submitLabel="Add exhibitor">
+      {exhibitorFields}
+    </FormDialog>
+  );
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -39,9 +66,7 @@ export default async function ExhibitorsPage({ params }: { params: Promise<{ id:
         </div>
         <div className="flex items-center gap-2">
           <ExportButton eventId={id} type="leads" label="Export leads (CSV)" />
-          <Button variant="primary">
-            <Plus /> Add exhibitor
-          </Button>
+          {newExhibitorDialog}
         </div>
       </div>
 
@@ -64,9 +89,9 @@ export default async function ExhibitorsPage({ params }: { params: Promise<{ id:
                 title="No exhibitors yet"
                 description="Add exhibitors to assign booths and start capturing leads on the floor."
                 action={
-                  <Button variant="primary">
-                    <Plus /> Add exhibitor
-                  </Button>
+                  <FormDialog buttonLabel="Add exhibitor" title="Add exhibitor" action={createExhibitor} submitLabel="Add exhibitor">
+                    {exhibitorFields}
+                  </FormDialog>
                 }
               />
             </div>
@@ -78,6 +103,7 @@ export default async function ExhibitorsPage({ params }: { params: Promise<{ id:
                   <TH>Booth</TH>
                   <TH>Description</TH>
                   <TH>Leads</TH>
+                  <TH className="text-right">Actions</TH>
                 </TR>
               </THead>
               <TBody>
@@ -100,6 +126,16 @@ export default async function ExhibitorsPage({ params }: { params: Promise<{ id:
                       {x.description ?? "—"}
                     </TD>
                     <TD className="font-medium">{x._count.leads}</TD>
+                    <TD>
+                      <div className="flex justify-end">
+                        <DeleteButton
+                          action={deleteExhibitor}
+                          id={x.id}
+                          eventId={id}
+                          confirmText={`Delete "${x.name}"? This can't be undone.`}
+                        />
+                      </div>
+                    </TD>
                   </TR>
                 ))}
               </TBody>

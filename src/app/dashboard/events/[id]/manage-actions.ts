@@ -230,3 +230,99 @@ export async function deleteSession(fd: FormData): Promise<void> {
   revalidatePath(`/dashboard/events/${event.id}/agenda`);
   revalidatePath(`/e/${event.slug}`);
 }
+
+// --- Companies -------------------------------------------------------------
+
+export async function createCompany(_prev: State | null, fd: FormData): Promise<State> {
+  const event = await authorize(fd);
+  const name = str(fd, "name");
+  if (!name) return { error: "Company name is required." };
+  await db.company.create({
+    data: {
+      eventId: event.id,
+      name,
+      industry: str(fd, "industry") || null,
+      website: str(fd, "website") || null,
+      boothNumber: str(fd, "boothNumber") || null,
+      description: str(fd, "description") || null,
+      lookingFor: str(fd, "lookingFor") || null,
+      offering: str(fd, "offering") || null,
+    },
+  });
+  revalidatePath(`/dashboard/events/${event.id}/companies`);
+  return { ok: true };
+}
+
+export async function deleteCompany(fd: FormData): Promise<void> {
+  const event = await authorize(fd);
+  await db.company.deleteMany({ where: { id: str(fd, "id"), eventId: event.id } });
+  revalidatePath(`/dashboard/events/${event.id}/companies`);
+}
+
+// --- Exhibitors ------------------------------------------------------------
+
+export async function createExhibitor(_prev: State | null, fd: FormData): Promise<State> {
+  const event = await authorize(fd);
+  const name = str(fd, "name");
+  if (!name) return { error: "Exhibitor name is required." };
+  await db.exhibitor.create({
+    data: {
+      eventId: event.id,
+      name,
+      boothNumber: str(fd, "boothNumber") || null,
+      website: str(fd, "website") || null,
+      description: str(fd, "description") || null,
+    },
+  });
+  revalidatePath(`/dashboard/events/${event.id}/exhibitors`);
+  return { ok: true };
+}
+
+export async function deleteExhibitor(fd: FormData): Promise<void> {
+  const event = await authorize(fd);
+  await db.exhibitor.deleteMany({ where: { id: str(fd, "id"), eventId: event.id } });
+  revalidatePath(`/dashboard/events/${event.id}/exhibitors`);
+}
+
+// --- Coupons ---------------------------------------------------------------
+
+export async function createCoupon(_prev: State | null, fd: FormData): Promise<State> {
+  const event = await authorize(fd);
+  const code = str(fd, "code").toUpperCase();
+  if (!code) return { error: "Coupon code is required." };
+
+  const kind = str(fd, "kind") || "PERCENT";
+  const rawValue = str(fd, "value");
+  let percentOff: number | null = null;
+  let amountOffCents: number | null = null;
+  if (kind === "PERCENT") {
+    const p = optInt(rawValue);
+    if (!p || p <= 0 || p > 100) return { error: "Enter a percentage between 1 and 100." };
+    percentOff = p;
+  } else {
+    const cents = dollarsToCents(rawValue);
+    if (cents <= 0) return { error: "Enter a discount amount greater than 0." };
+    amountOffCents = cents;
+  }
+
+  const existing = await db.coupon.findFirst({ where: { eventId: event.id, code } });
+  if (existing) return { error: `Code "${code}" already exists for this event.` };
+
+  await db.coupon.create({
+    data: {
+      eventId: event.id,
+      code,
+      percentOff,
+      amountOffCents,
+      maxRedemptions: optInt(str(fd, "maxRedemptions")),
+    },
+  });
+  revalidatePath(`/dashboard/events/${event.id}/tickets`);
+  return { ok: true };
+}
+
+export async function deleteCoupon(fd: FormData): Promise<void> {
+  const event = await authorize(fd);
+  await db.coupon.deleteMany({ where: { id: str(fd, "id"), eventId: event.id } });
+  revalidatePath(`/dashboard/events/${event.id}/tickets`);
+}
