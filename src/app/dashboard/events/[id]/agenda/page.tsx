@@ -9,7 +9,7 @@ import { FormDialog } from "@/components/ui/form-dialog";
 import { DeleteButton } from "@/components/ui/delete-button";
 import { Table, THead, TBody, TR, TH, TD } from "@/components/ui/table";
 import { StatCard, EmptyState } from "@/components/ui/misc";
-import { createSession, deleteSession } from "../manage-actions";
+import { createSession, updateSession, deleteSession } from "../manage-actions";
 
 const SESSION_FORMATS = ["TALK", "PANEL", "WORKSHOP", "BREAKOUT", "KEYNOTE"];
 
@@ -29,15 +29,16 @@ export default async function AgendaPage({ params }: { params: Promise<{ id: str
 
   const breakouts = sessions.filter((s) => s.format === "BREAKOUT" || s.isBreakout).length;
 
-  const sessionFields = (
+  const sessionFields = (s?: (typeof sessions)[number]) => (
     <>
       <input type="hidden" name="eventId" value={id} />
+      {s && <input type="hidden" name="id" value={s.id} />}
       <Field label="Title">
-        <Input name="title" placeholder="Opening keynote" required />
+        <Input name="title" placeholder="Opening keynote" defaultValue={s?.title ?? ""} required />
       </Field>
       <div className="grid gap-4 sm:grid-cols-2">
         <Field label="Track">
-          <Select name="trackId" defaultValue="">
+          <Select name="trackId" defaultValue={s?.trackId ?? ""}>
             <option value="">No track</option>
             {tracks.map((t) => (
               <option key={t.id} value={t.id}>{t.name}</option>
@@ -45,7 +46,7 @@ export default async function AgendaPage({ params }: { params: Promise<{ id: str
           </Select>
         </Field>
         <Field label="Speaker">
-          <Select name="speakerId" defaultValue="">
+          <Select name="speakerId" defaultValue={s?.speakerId ?? ""}>
             <option value="">No speaker</option>
             {speakers.map((sp) => (
               <option key={sp.id} value={sp.id}>{sp.name}</option>
@@ -55,10 +56,10 @@ export default async function AgendaPage({ params }: { params: Promise<{ id: str
       </div>
       <div className="grid gap-4 sm:grid-cols-2">
         <Field label="Room">
-          <Input name="room" placeholder="Main Hall" />
+          <Input name="room" placeholder="Main Hall" defaultValue={s?.room ?? ""} />
         </Field>
         <Field label="Format">
-          <Select name="format" defaultValue="TALK">
+          <Select name="format" defaultValue={s?.format ?? "TALK"}>
             {SESSION_FORMATS.map((f) => (
               <option key={f} value={f}>{f.charAt(0) + f.slice(1).toLowerCase()}</option>
             ))}
@@ -66,14 +67,14 @@ export default async function AgendaPage({ params }: { params: Promise<{ id: str
         </Field>
       </div>
       <Field label="Capacity">
-        <Input name="capacity" type="number" min="0" placeholder="200" />
+        <Input name="capacity" type="number" min="0" placeholder="200" defaultValue={s?.capacity != null ? String(s.capacity) : ""} />
       </Field>
       <div className="grid gap-4 sm:grid-cols-2">
         <Field label="Starts at">
-          <Input name="startsAt" type="datetime-local" />
+          <Input name="startsAt" type="datetime-local" defaultValue={s?.startsAt ? new Date(s.startsAt).toISOString().slice(0, 16) : ""} />
         </Field>
         <Field label="Ends at">
-          <Input name="endsAt" type="datetime-local" />
+          <Input name="endsAt" type="datetime-local" defaultValue={s?.endsAt ? new Date(s.endsAt).toISOString().slice(0, 16) : ""} />
         </Field>
       </div>
     </>
@@ -93,7 +94,7 @@ export default async function AgendaPage({ params }: { params: Promise<{ id: str
           action={createSession}
           submitLabel="Add session"
         >
-          {sessionFields}
+          {sessionFields()}
         </FormDialog>
       </div>
 
@@ -133,7 +134,7 @@ export default async function AgendaPage({ params }: { params: Promise<{ id: str
               action={createSession}
               submitLabel="Add session"
             >
-              {sessionFields}
+              {sessionFields()}
             </FormDialog>
           }
         />
@@ -182,7 +183,17 @@ export default async function AgendaPage({ params }: { params: Promise<{ id: str
                     </TD>
                     <TD>{s.capacity ?? <span className="text-muted-foreground">—</span>}</TD>
                     <TD>
-                      <div className="flex justify-end">
+                      <div className="flex items-center justify-end gap-1">
+                        <FormDialog
+                          mode="edit"
+                          buttonLabel={`Edit ${s.title}`}
+                          title="Edit session"
+                          description="Update this session."
+                          action={updateSession}
+                          submitLabel="Save changes"
+                        >
+                          {sessionFields(s)}
+                        </FormDialog>
                         <DeleteButton
                           action={deleteSession}
                           id={s.id}

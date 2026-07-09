@@ -9,7 +9,7 @@ import { Field, Input, Select, Textarea } from "@/components/ui/input";
 import { FormDialog } from "@/components/ui/form-dialog";
 import { DeleteButton } from "@/components/ui/delete-button";
 import { SPONSOR_LEVELS } from "@/lib/constants";
-import { createSponsor, deleteSponsor } from "../manage-actions";
+import { createSponsor, updateSponsor, deleteSponsor } from "../manage-actions";
 
 export default async function SponsorsPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -28,24 +28,25 @@ export default async function SponsorsPage({ params }: { params: Promise<{ id: s
 
   const aiPackage = await generate("sponsor_package", { name: event.name });
 
-  const sponsorFields = (
+  const sponsorFields = (s?: (typeof sponsors)[number]) => (
     <>
       <input type="hidden" name="eventId" value={id} />
+      {s && <input type="hidden" name="id" value={s.id} />}
       <Field label="Name">
-        <Input name="name" placeholder="Acme Inc." required />
+        <Input name="name" placeholder="Acme Inc." defaultValue={s?.name ?? ""} required />
       </Field>
       <Field label="Level">
-        <Select name="level" defaultValue="GOLD">
+        <Select name="level" defaultValue={s?.level ?? "GOLD"}>
           {Object.entries(SPONSOR_LEVELS).map(([k, v]) => (
             <option key={k} value={k}>{v.label}</option>
           ))}
         </Select>
       </Field>
       <Field label="Description">
-        <Textarea name="description" rows={3} placeholder="A short description of this sponsor." />
+        <Textarea name="description" rows={3} placeholder="A short description of this sponsor." defaultValue={s?.description ?? ""} />
       </Field>
       <Field label="Website">
-        <Input name="website" type="url" placeholder="https://acme.com" />
+        <Input name="website" type="url" placeholder="https://acme.com" defaultValue={s?.website ?? ""} />
       </Field>
     </>
   );
@@ -66,7 +67,7 @@ export default async function SponsorsPage({ params }: { params: Promise<{ id: s
           action={createSponsor}
           submitLabel="Add sponsor"
         >
-          {sponsorFields}
+          {sponsorFields()}
         </FormDialog>
       </div>
 
@@ -91,7 +92,7 @@ export default async function SponsorsPage({ params }: { params: Promise<{ id: s
                   action={createSponsor}
                   submitLabel="Add sponsor"
                 >
-                  {sponsorFields}
+                  {sponsorFields()}
                 </FormDialog>
               }
             />
@@ -119,6 +120,16 @@ export default async function SponsorsPage({ params }: { params: Promise<{ id: s
                         {s.visible ? <Eye className="size-3" /> : <EyeOff className="size-3" />}
                         {s.visible ? "Visible" : "Hidden"}
                       </Badge>
+                      <FormDialog
+                        mode="edit"
+                        buttonLabel={`Edit ${s.name}`}
+                        title="Edit sponsor"
+                        description="Update this sponsor."
+                        action={updateSponsor}
+                        submitLabel="Save changes"
+                      >
+                        {sponsorFields(s)}
+                      </FormDialog>
                       <DeleteButton
                         action={deleteSponsor}
                         id={s.id}

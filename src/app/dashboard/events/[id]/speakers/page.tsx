@@ -8,7 +8,7 @@ import { Field, Input, Textarea } from "@/components/ui/input";
 import { FormDialog } from "@/components/ui/form-dialog";
 import { DeleteButton } from "@/components/ui/delete-button";
 import { Avatar, EmptyState } from "@/components/ui/misc";
-import { createSpeaker, deleteSpeaker } from "../manage-actions";
+import { createSpeaker, updateSpeaker, deleteSpeaker } from "../manage-actions";
 
 export default async function SpeakersPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -21,28 +21,29 @@ export default async function SpeakersPage({ params }: { params: Promise<{ id: s
 
   const ai = await generate("speaker_bio", { name: "your speaker", industry: "their field" });
 
-  const speakerFields = (
+  const speakerFields = (sp?: (typeof speakers)[number]) => (
     <>
       <input type="hidden" name="eventId" value={id} />
+      {sp && <input type="hidden" name="id" value={sp.id} />}
       <Field label="Name">
-        <Input name="name" placeholder="Jane Doe" required />
+        <Input name="name" placeholder="Jane Doe" defaultValue={sp?.name ?? ""} required />
       </Field>
       <div className="grid gap-4 sm:grid-cols-2">
         <Field label="Title">
-          <Input name="title" placeholder="Head of Product" />
+          <Input name="title" placeholder="Head of Product" defaultValue={sp?.title ?? ""} />
         </Field>
         <Field label="Company">
-          <Input name="companyName" placeholder="Acme Inc." />
+          <Input name="companyName" placeholder="Acme Inc." defaultValue={sp?.companyName ?? ""} />
         </Field>
       </div>
       <Field label="Bio">
-        <Textarea name="bio" rows={3} placeholder="A short professional bio." />
+        <Textarea name="bio" rows={3} placeholder="A short professional bio." defaultValue={sp?.bio ?? ""} />
       </Field>
       <Field label="Session title">
-        <Input name="sessionTitle" placeholder="Scaling design systems" />
+        <Input name="sessionTitle" placeholder="Scaling design systems" defaultValue={sp?.sessionTitle ?? ""} />
       </Field>
       <label className="flex items-center gap-2 text-sm">
-        <input type="checkbox" name="featured" className="size-4 accent-[hsl(243_75%_59%)]" /> Feature this speaker
+        <input type="checkbox" name="featured" defaultChecked={sp?.featured ?? false} className="size-4 accent-[hsl(243_75%_59%)]" /> Feature this speaker
       </label>
     </>
   );
@@ -61,7 +62,7 @@ export default async function SpeakersPage({ params }: { params: Promise<{ id: s
           action={createSpeaker}
           submitLabel="Add speaker"
         >
-          {speakerFields}
+          {speakerFields()}
         </FormDialog>
       </div>
 
@@ -83,7 +84,7 @@ export default async function SpeakersPage({ params }: { params: Promise<{ id: s
               action={createSpeaker}
               submitLabel="Add speaker"
             >
-              {speakerFields}
+              {speakerFields()}
             </FormDialog>
           }
         />
@@ -102,12 +103,24 @@ export default async function SpeakersPage({ params }: { params: Promise<{ id: s
                     {sp.title && <p className="truncate text-sm text-muted-foreground">{sp.title}</p>}
                     {sp.companyName && <p className="truncate text-sm text-muted-foreground">{sp.companyName}</p>}
                   </div>
-                  <DeleteButton
-                    action={deleteSpeaker}
-                    id={sp.id}
-                    eventId={id}
-                    confirmText={`Delete "${sp.name}"? This can't be undone.`}
-                  />
+                  <div className="flex items-center gap-1">
+                    <FormDialog
+                      mode="edit"
+                      buttonLabel={`Edit ${sp.name}`}
+                      title="Edit speaker"
+                      description="Update this speaker."
+                      action={updateSpeaker}
+                      submitLabel="Save changes"
+                    >
+                      {speakerFields(sp)}
+                    </FormDialog>
+                    <DeleteButton
+                      action={deleteSpeaker}
+                      id={sp.id}
+                      eventId={id}
+                      confirmText={`Delete "${sp.name}"? This can't be undone.`}
+                    />
+                  </div>
                 </div>
                 {sp.sessionTitle && (
                   <p className="mt-4 line-clamp-2 rounded-lg bg-secondary/50 px-3 py-2 text-sm">
