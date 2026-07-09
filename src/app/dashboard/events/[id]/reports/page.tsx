@@ -3,7 +3,6 @@ import {
   UserCheck,
   CalendarClock,
   UserX,
-  Download,
   Send,
   Sparkles,
   Ticket as TicketIcon,
@@ -11,6 +10,7 @@ import {
   Building2,
 } from "lucide-react";
 import { getEventOr404, getEventStats } from "@/lib/queries";
+import { ExportButton } from "@/components/ui/export-button";
 import { db } from "@/lib/db";
 import { generate } from "@/lib/ai";
 import { StatCard, Progress, EmptyState } from "@/components/ui/misc";
@@ -51,9 +51,7 @@ export default async function ReportsPage({ params }: { params: Promise<{ id: st
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <Button variant="outline">
-            <Download /> Export CRM-ready CSV
-          </Button>
+          <ExportButton eventId={id} type="attendees" label="Export CRM-ready CSV" />
           <Button variant="primary">
             <Send /> Launch post-event campaign
           </Button>

@@ -1,5 +1,6 @@
 import { Plus, Building2, Store, Search, ExternalLink } from "lucide-react";
 import { getEventOr404 } from "@/lib/queries";
+import { ExportButton } from "@/components/ui/export-button";
 import { db } from "@/lib/db";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -21,9 +22,12 @@ export default async function CompaniesPage({ params }: { params: Promise<{ id: 
           <h2 className="text-lg font-semibold">Companies</h2>
           <p className="text-sm text-muted-foreground">Exhibiting and participating organizations.</p>
         </div>
-        <Button>
-          <Plus className="size-4" /> Add company
-        </Button>
+        <div className="flex items-center gap-2">
+          <ExportButton eventId={id} type="companies" />
+          <Button>
+            <Plus className="size-4" /> Add company
+          </Button>
+        </div>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2">

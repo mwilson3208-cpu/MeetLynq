@@ -12,8 +12,12 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Table, THead, TBody, TR, TH, TD } from "@/components/ui/table";
+import { Field, Input, Select, Textarea } from "@/components/ui/input";
+import { FormDialog } from "@/components/ui/form-dialog";
+import { DeleteButton } from "@/components/ui/delete-button";
 import { formatMoney, pct } from "@/lib/utils";
 import { TICKET_TYPES, labelOf } from "@/lib/constants";
+import { createTicket, updateTicket, deleteTicket } from "../manage-actions";
 
 const TYPE_TONE: Record<string, "neutral" | "primary" | "success" | "info"> = {
   FREE: "success",
@@ -41,6 +45,76 @@ export default async function TicketsPage({
     0
   );
 
+  const ticketFields = (t?: (typeof tickets)[number]) => (
+    <>
+      <input type="hidden" name="eventId" value={id} />
+      {t && <input type="hidden" name="id" value={t.id} />}
+      <Field label="Name">
+        <Input name="name" placeholder="General Admission" defaultValue={t?.name ?? ""} required />
+      </Field>
+      <div className="grid gap-4 sm:grid-cols-2">
+        <Field label="Type">
+          <Select name="type" defaultValue={t?.type ?? "PAID"}>
+            {Object.entries(TICKET_TYPES).map(([k, v]) => (
+              <option key={k} value={k}>{v}</option>
+            ))}
+          </Select>
+        </Field>
+        <Field label="Price (USD)" hint="Ignored for free tickets.">
+          <Input
+            name="price"
+            type="number"
+            min="0"
+            step="0.01"
+            placeholder="499"
+            defaultValue={t && t.priceCents > 0 ? (t.priceCents / 100).toString() : ""}
+          />
+        </Field>
+      </div>
+      <div className="grid gap-4 sm:grid-cols-2">
+        <Field label="Quantity" hint="Blank = unlimited.">
+          <Input
+            name="quantity"
+            type="number"
+            min="0"
+            placeholder="400"
+            defaultValue={t?.quantity != null ? String(t.quantity) : ""}
+          />
+        </Field>
+        <label className="flex items-center gap-2 pt-8 text-sm">
+          <input
+            type="checkbox"
+            name="earlyBird"
+            defaultChecked={t?.earlyBird ?? false}
+            className="size-4 accent-[hsl(243_75%_59%)]"
+          />{" "}
+          Early-bird pricing
+        </label>
+      </div>
+      <Field label="Description">
+        <Textarea name="description" rows={2} defaultValue={t?.description ?? ""} placeholder="What's included with this ticket." />
+      </Field>
+      {t && (
+        <label className="flex items-center gap-2 text-sm">
+          <input type="checkbox" name="isActive" defaultChecked={t.isActive} className="size-4 accent-[hsl(243_75%_59%)]" />{" "}
+          Active (available for registration)
+        </label>
+      )}
+    </>
+  );
+
+  const newTicketDialog = (
+    <FormDialog
+      buttonLabel="New ticket type"
+      title="New ticket type"
+      description="Add a ticket attendees can register with."
+      action={createTicket}
+      submitLabel="Create ticket"
+    >
+      {ticketFields()}
+    </FormDialog>
+  );
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -50,9 +124,7 @@ export default async function TicketsPage({
             Manage ticket types, pricing, and discount codes.
           </p>
         </div>
-        <Button variant="primary">
-          <Plus /> New ticket type
-        </Button>
+        {newTicketDialog}
       </div>
 
       <div className="grid gap-4 sm:grid-cols-3">
@@ -83,9 +155,15 @@ export default async function TicketsPage({
               title="No ticket types yet"
               description="Create your first ticket type to start selling registrations."
               action={
-                <Button variant="primary">
-                  <Plus /> New ticket type
-                </Button>
+                <FormDialog
+                  buttonLabel="New ticket type"
+                  title="New ticket type"
+                  description="Add a ticket attendees can register with."
+                  action={createTicket}
+                  submitLabel="Create ticket"
+                >
+                  {ticketFields()}
+                </FormDialog>
               }
             />
           ) : (
@@ -98,6 +176,7 @@ export default async function TicketsPage({
                   <TH className="w-48">Sold</TH>
                   <TH>Early bird</TH>
                   <TH>Status</TH>
+                  <TH className="text-right">Actions</TH>
                 </TR>
               </THead>
               <TBody>
@@ -136,6 +215,26 @@ export default async function TicketsPage({
                         <Badge tone={t.isActive ? "success" : "neutral"}>
                           {t.isActive ? "Active" : "Inactive"}
                         </Badge>
+                      </TD>
+                      <TD>
+                        <div className="flex items-center justify-end gap-1">
+                          <FormDialog
+                            mode="edit"
+                            buttonLabel={`Edit ${t.name}`}
+                            title="Edit ticket"
+                            description="Update this ticket type."
+                            action={updateTicket}
+                            submitLabel="Save changes"
+                          >
+                            {ticketFields(t)}
+                          </FormDialog>
+                          <DeleteButton
+                            action={deleteTicket}
+                            id={t.id}
+                            eventId={id}
+                            confirmText={`Delete "${t.name}"? This can't be undone.`}
+                          />
+                        </div>
                       </TD>
                     </TR>
                   );

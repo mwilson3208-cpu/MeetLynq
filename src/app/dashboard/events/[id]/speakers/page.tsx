@@ -1,12 +1,14 @@
-import { Plus, Mic, Search, Sparkles } from "lucide-react";
+import { Mic, Search, Sparkles } from "lucide-react";
 import { getEventOr404 } from "@/lib/queries";
 import { db } from "@/lib/db";
 import { generate } from "@/lib/ai";
-import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
+import { Field, Input, Textarea } from "@/components/ui/input";
+import { FormDialog } from "@/components/ui/form-dialog";
+import { DeleteButton } from "@/components/ui/delete-button";
 import { Avatar, EmptyState } from "@/components/ui/misc";
+import { createSpeaker, updateSpeaker, deleteSpeaker } from "../manage-actions";
 
 export default async function SpeakersPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -19,6 +21,33 @@ export default async function SpeakersPage({ params }: { params: Promise<{ id: s
 
   const ai = await generate("speaker_bio", { name: "your speaker", industry: "their field" });
 
+  const speakerFields = (sp?: (typeof speakers)[number]) => (
+    <>
+      <input type="hidden" name="eventId" value={id} />
+      {sp && <input type="hidden" name="id" value={sp.id} />}
+      <Field label="Name">
+        <Input name="name" placeholder="Jane Doe" defaultValue={sp?.name ?? ""} required />
+      </Field>
+      <div className="grid gap-4 sm:grid-cols-2">
+        <Field label="Title">
+          <Input name="title" placeholder="Head of Product" defaultValue={sp?.title ?? ""} />
+        </Field>
+        <Field label="Company">
+          <Input name="companyName" placeholder="Acme Inc." defaultValue={sp?.companyName ?? ""} />
+        </Field>
+      </div>
+      <Field label="Bio">
+        <Textarea name="bio" rows={3} placeholder="A short professional bio." defaultValue={sp?.bio ?? ""} />
+      </Field>
+      <Field label="Session title">
+        <Input name="sessionTitle" placeholder="Scaling design systems" defaultValue={sp?.sessionTitle ?? ""} />
+      </Field>
+      <label className="flex items-center gap-2 text-sm">
+        <input type="checkbox" name="featured" defaultChecked={sp?.featured ?? false} className="size-4 accent-[hsl(243_75%_59%)]" /> Feature this speaker
+      </label>
+    </>
+  );
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -26,9 +55,15 @@ export default async function SpeakersPage({ params }: { params: Promise<{ id: s
           <h2 className="text-lg font-semibold">Speakers</h2>
           <p className="text-sm text-muted-foreground">Your lineup of voices for the event.</p>
         </div>
-        <Button>
-          <Plus className="size-4" /> Add speaker
-        </Button>
+        <FormDialog
+          buttonLabel="Add speaker"
+          title="Add speaker"
+          description="Add a speaker to your event lineup."
+          action={createSpeaker}
+          submitLabel="Add speaker"
+        >
+          {speakerFields()}
+        </FormDialog>
       </div>
 
       <div className="relative w-full sm:max-w-sm">
@@ -42,9 +77,15 @@ export default async function SpeakersPage({ params }: { params: Promise<{ id: s
           title="No speakers yet"
           description="Add speakers to showcase your lineup and link them to sessions."
           action={
-            <Button>
-              <Plus className="size-4" /> Add speaker
-            </Button>
+            <FormDialog
+              buttonLabel="Add speaker"
+              title="Add speaker"
+              description="Add a speaker to your event lineup."
+              action={createSpeaker}
+              submitLabel="Add speaker"
+            >
+              {speakerFields()}
+            </FormDialog>
           }
         />
       ) : (
@@ -61,6 +102,24 @@ export default async function SpeakersPage({ params }: { params: Promise<{ id: s
                     </div>
                     {sp.title && <p className="truncate text-sm text-muted-foreground">{sp.title}</p>}
                     {sp.companyName && <p className="truncate text-sm text-muted-foreground">{sp.companyName}</p>}
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <FormDialog
+                      mode="edit"
+                      buttonLabel={`Edit ${sp.name}`}
+                      title="Edit speaker"
+                      description="Update this speaker."
+                      action={updateSpeaker}
+                      submitLabel="Save changes"
+                    >
+                      {speakerFields(sp)}
+                    </FormDialog>
+                    <DeleteButton
+                      action={deleteSpeaker}
+                      id={sp.id}
+                      eventId={id}
+                      confirmText={`Delete "${sp.name}"? This can't be undone.`}
+                    />
                   </div>
                 </div>
                 {sp.sessionTitle && (

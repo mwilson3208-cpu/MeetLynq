@@ -1,5 +1,6 @@
-import { Users, UserPlus, Search, Download } from "lucide-react";
+import { Users, UserPlus, Search } from "lucide-react";
 import { getEventOr404 } from "@/lib/queries";
+import { ExportButton } from "@/components/ui/export-button";
 import { db } from "@/lib/db";
 import { StatCard, Avatar, EmptyState } from "@/components/ui/misc";
 import { Card, CardContent } from "@/components/ui/card";
@@ -47,9 +48,7 @@ export default async function AttendeesPage({
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline">
-            <Download /> Export
-          </Button>
+          <ExportButton eventId={id} type="attendees" label="Export" />
           <Button variant="primary">
             <UserPlus /> Add attendee
           </Button>

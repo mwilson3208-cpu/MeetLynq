@@ -1,5 +1,6 @@
 import { UserPlus, Users, Gauge, Search } from "lucide-react";
 import { getEventOr404 } from "@/lib/queries";
+import { ExportButton } from "@/components/ui/export-button";
 import { db } from "@/lib/db";
 import { parseJson } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -32,9 +33,12 @@ export default async function DirectoryPage({ params }: { params: Promise<{ id: 
           <h2 className="text-lg font-semibold">Participant directory</h2>
           <p className="text-sm text-muted-foreground">Browse attendee profiles and request meetings.</p>
         </div>
-        <Button>
-          <UserPlus className="size-4" /> Invite attendees
-        </Button>
+        <div className="flex items-center gap-2">
+          <ExportButton eventId={id} type="participants" />
+          <Button>
+            <UserPlus className="size-4" /> Invite attendees
+          </Button>
+        </div>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2">
