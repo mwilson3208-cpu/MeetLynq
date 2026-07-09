@@ -15,7 +15,18 @@ import { StatCard, EmptyState } from "@/components/ui/misc";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input, Field, Select } from "@/components/ui/input";
+import { FormDialog } from "@/components/ui/form-dialog";
+import { DeleteButton } from "@/components/ui/delete-button";
 import { Table, THead, TBody, TR, TH, TD } from "@/components/ui/table";
+import {
+  createMeetingSlot,
+  updateMeetingSlot,
+  deleteMeetingSlot,
+  createMeetingLocation,
+  updateMeetingLocation,
+  deleteMeetingLocation,
+} from "../manage-actions";
 
 const STATUS_FILTERS = ["All", "Requested", "Approved", "Completed", "No-show", "Canceled"];
 
@@ -51,6 +62,83 @@ export default async function MeetingsPage({
   const completed = meetings.filter((m) => m.status === "COMPLETED").length;
   const noShows = meetings.filter((m) => m.noShow).length;
   const noShowRate = pct(noShows, total);
+
+  const slotFields = (s?: (typeof slots)[number]) => (
+    <>
+      <input type="hidden" name="eventId" value={id} />
+      {s && <input type="hidden" name="id" value={s.id} />}
+      <Field label="Label">
+        <Input name="label" placeholder="Slot 1" defaultValue={s?.label ?? ""} />
+      </Field>
+      <div className="grid gap-4 sm:grid-cols-2">
+        <Field label="Starts">
+          <Input
+            name="startsAt"
+            type="datetime-local"
+            defaultValue={s?.startsAt ? new Date(s.startsAt).toISOString().slice(0, 16) : ""}
+            required
+          />
+        </Field>
+        <Field label="Ends">
+          <Input
+            name="endsAt"
+            type="datetime-local"
+            defaultValue={s?.endsAt ? new Date(s.endsAt).toISOString().slice(0, 16) : ""}
+            required
+          />
+        </Field>
+      </div>
+    </>
+  );
+
+  const newSlotDialog = (
+    <FormDialog
+      buttonLabel="Add slot"
+      title="Add meeting slot"
+      description="A window when 1:1 meetings can be booked."
+      action={createMeetingSlot}
+      submitLabel="Add slot"
+      buttonSize="sm"
+    >
+      {slotFields()}
+    </FormDialog>
+  );
+
+  const locationFields = (l?: (typeof locations)[number]) => (
+    <>
+      <input type="hidden" name="eventId" value={id} />
+      {l && <input type="hidden" name="id" value={l.id} />}
+      <Field label="Name">
+        <Input name="name" placeholder="Table 1" defaultValue={l?.name ?? ""} required />
+      </Field>
+      <div className="grid gap-4 sm:grid-cols-2">
+        <Field label="Kind">
+          <Select name="kind" defaultValue={l?.kind ?? "TABLE"}>
+            <option value="TABLE">Table</option>
+            <option value="ROOM">Room</option>
+            <option value="AREA">Area</option>
+            <option value="VIRTUAL">Virtual</option>
+          </Select>
+        </Field>
+        <Field label="Capacity">
+          <Input name="capacity" type="number" min="1" defaultValue={l?.capacity != null ? String(l.capacity) : "2"} />
+        </Field>
+      </div>
+    </>
+  );
+
+  const newLocationDialog = (
+    <FormDialog
+      buttonLabel="Add location"
+      title="Add location / table"
+      description="Where meetings physically happen."
+      action={createMeetingLocation}
+      submitLabel="Add location"
+      buttonSize="sm"
+    >
+      {locationFields()}
+    </FormDialog>
+  );
 
   return (
     <div className="space-y-6">
@@ -157,10 +245,11 @@ export default async function MeetingsPage({
 
         <div className="space-y-6">
           <Card>
-            <CardHeader>
+            <CardHeader className="flex-row items-center justify-between space-y-0">
               <CardTitle className="flex items-center gap-2">
                 <Clock className="size-4 text-primary" /> Meeting slots
               </CardTitle>
+              {newSlotDialog}
             </CardHeader>
             <CardContent className="space-y-2">
               {slots.length === 0 ? (
@@ -169,12 +258,24 @@ export default async function MeetingsPage({
                 slots.map((s) => (
                   <div
                     key={s.id}
-                    className="flex items-center justify-between rounded-lg border p-3 text-sm"
+                    className="flex items-center justify-between gap-2 rounded-lg border p-3 text-sm"
                   >
                     <span className="font-medium">{s.label ?? "Slot"}</span>
-                    <span className="text-muted-foreground">
-                      {formatTime(s.startsAt)} – {formatTime(s.endsAt)}
-                    </span>
+                    <div className="flex items-center gap-1">
+                      <span className="text-muted-foreground">
+                        {formatTime(s.startsAt)} – {formatTime(s.endsAt)}
+                      </span>
+                      <FormDialog
+                        mode="edit"
+                        buttonLabel={`Edit ${s.label ?? "slot"}`}
+                        title="Edit meeting slot"
+                        action={updateMeetingSlot}
+                        submitLabel="Save changes"
+                      >
+                        {slotFields(s)}
+                      </FormDialog>
+                      <DeleteButton action={deleteMeetingSlot} id={s.id} eventId={id} confirmText="Delete this slot?" />
+                    </div>
                   </div>
                 ))
               )}
@@ -182,10 +283,11 @@ export default async function MeetingsPage({
           </Card>
 
           <Card>
-            <CardHeader>
+            <CardHeader className="flex-row items-center justify-between space-y-0">
               <CardTitle className="flex items-center gap-2">
                 <MapPin className="size-4 text-primary" /> Locations / tables
               </CardTitle>
+              {newLocationDialog}
             </CardHeader>
             <CardContent className="space-y-2">
               {locations.length === 0 ? (
@@ -194,13 +296,25 @@ export default async function MeetingsPage({
                 locations.map((l) => (
                   <div
                     key={l.id}
-                    className="flex items-center justify-between rounded-lg border p-3 text-sm"
+                    className="flex items-center justify-between gap-2 rounded-lg border p-3 text-sm"
                   >
                     <div>
                       <p className="font-medium">{l.name}</p>
                       <p className="text-xs text-muted-foreground">{l.kind}</p>
                     </div>
-                    <Badge tone="neutral">Seats {l.capacity}</Badge>
+                    <div className="flex items-center gap-1">
+                      <Badge tone="neutral">Seats {l.capacity}</Badge>
+                      <FormDialog
+                        mode="edit"
+                        buttonLabel={`Edit ${l.name}`}
+                        title="Edit location / table"
+                        action={updateMeetingLocation}
+                        submitLabel="Save changes"
+                      >
+                        {locationFields(l)}
+                      </FormDialog>
+                      <DeleteButton action={deleteMeetingLocation} id={l.id} eventId={id} confirmText="Delete this location?" />
+                    </div>
                   </div>
                 ))
               )}

@@ -25,6 +25,7 @@ const tabs = [
   { seg: "emails", label: "Emails" },
   { seg: "surveys", label: "Surveys" },
   { seg: "reports", label: "Reports" },
+  { seg: "settings", label: "Settings" },
 ];
 
 export function EventNav({ eventId }: { eventId: string }) {

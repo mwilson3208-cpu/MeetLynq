@@ -230,3 +230,311 @@ export async function deleteSession(fd: FormData): Promise<void> {
   revalidatePath(`/dashboard/events/${event.id}/agenda`);
   revalidatePath(`/e/${event.slug}`);
 }
+
+// --- Companies -------------------------------------------------------------
+
+export async function createCompany(_prev: State | null, fd: FormData): Promise<State> {
+  const event = await authorize(fd);
+  const name = str(fd, "name");
+  if (!name) return { error: "Company name is required." };
+  await db.company.create({
+    data: {
+      eventId: event.id,
+      name,
+      industry: str(fd, "industry") || null,
+      website: str(fd, "website") || null,
+      boothNumber: str(fd, "boothNumber") || null,
+      description: str(fd, "description") || null,
+      lookingFor: str(fd, "lookingFor") || null,
+      offering: str(fd, "offering") || null,
+    },
+  });
+  revalidatePath(`/dashboard/events/${event.id}/companies`);
+  return { ok: true };
+}
+
+export async function deleteCompany(fd: FormData): Promise<void> {
+  const event = await authorize(fd);
+  await db.company.deleteMany({ where: { id: str(fd, "id"), eventId: event.id } });
+  revalidatePath(`/dashboard/events/${event.id}/companies`);
+}
+
+// --- Exhibitors ------------------------------------------------------------
+
+export async function createExhibitor(_prev: State | null, fd: FormData): Promise<State> {
+  const event = await authorize(fd);
+  const name = str(fd, "name");
+  if (!name) return { error: "Exhibitor name is required." };
+  await db.exhibitor.create({
+    data: {
+      eventId: event.id,
+      name,
+      boothNumber: str(fd, "boothNumber") || null,
+      website: str(fd, "website") || null,
+      description: str(fd, "description") || null,
+    },
+  });
+  revalidatePath(`/dashboard/events/${event.id}/exhibitors`);
+  return { ok: true };
+}
+
+export async function deleteExhibitor(fd: FormData): Promise<void> {
+  const event = await authorize(fd);
+  await db.exhibitor.deleteMany({ where: { id: str(fd, "id"), eventId: event.id } });
+  revalidatePath(`/dashboard/events/${event.id}/exhibitors`);
+}
+
+// --- Coupons ---------------------------------------------------------------
+
+export async function createCoupon(_prev: State | null, fd: FormData): Promise<State> {
+  const event = await authorize(fd);
+  const code = str(fd, "code").toUpperCase();
+  if (!code) return { error: "Coupon code is required." };
+
+  const kind = str(fd, "kind") || "PERCENT";
+  const rawValue = str(fd, "value");
+  let percentOff: number | null = null;
+  let amountOffCents: number | null = null;
+  if (kind === "PERCENT") {
+    const p = optInt(rawValue);
+    if (!p || p <= 0 || p > 100) return { error: "Enter a percentage between 1 and 100." };
+    percentOff = p;
+  } else {
+    const cents = dollarsToCents(rawValue);
+    if (cents <= 0) return { error: "Enter a discount amount greater than 0." };
+    amountOffCents = cents;
+  }
+
+  const existing = await db.coupon.findFirst({ where: { eventId: event.id, code } });
+  if (existing) return { error: `Code "${code}" already exists for this event.` };
+
+  await db.coupon.create({
+    data: {
+      eventId: event.id,
+      code,
+      percentOff,
+      amountOffCents,
+      maxRedemptions: optInt(str(fd, "maxRedemptions")),
+    },
+  });
+  revalidatePath(`/dashboard/events/${event.id}/tickets`);
+  return { ok: true };
+}
+
+export async function deleteCoupon(fd: FormData): Promise<void> {
+  const event = await authorize(fd);
+  await db.coupon.deleteMany({ where: { id: str(fd, "id"), eventId: event.id } });
+  revalidatePath(`/dashboard/events/${event.id}/tickets`);
+}
+
+// --- Marketplace -----------------------------------------------------------
+
+function keywordsToJson(v: string): string {
+  const list = v
+    .split(",")
+    .map((k) => k.trim())
+    .filter(Boolean);
+  return JSON.stringify(list);
+}
+
+export async function createMarketplacePost(_prev: State | null, fd: FormData): Promise<State> {
+  const event = await authorize(fd);
+  const title = str(fd, "title");
+  if (!title) return { error: "A post title is required." };
+  const authorName = str(fd, "authorName") || "Organizer";
+  await db.marketplacePost.create({
+    data: {
+      eventId: event.id,
+      title,
+      authorName,
+      kind: str(fd, "kind") || "OFFER",
+      category: str(fd, "category") || null,
+      description: str(fd, "description") || null,
+      audience: str(fd, "audience") || null,
+      keywords: keywordsToJson(str(fd, "keywords")),
+      sponsored: fd.get("sponsored") === "on",
+    },
+  });
+  revalidatePath(`/dashboard/events/${event.id}/marketplace`);
+  revalidatePath(`/e/${event.slug}`);
+  return { ok: true };
+}
+
+export async function deleteMarketplacePost(fd: FormData): Promise<void> {
+  const event = await authorize(fd);
+  await db.marketplacePost.deleteMany({ where: { id: str(fd, "id"), eventId: event.id } });
+  revalidatePath(`/dashboard/events/${event.id}/marketplace`);
+  revalidatePath(`/e/${event.slug}`);
+}
+
+// --- Meeting locations & slots --------------------------------------------
+
+export async function createMeetingLocation(_prev: State | null, fd: FormData): Promise<State> {
+  const event = await authorize(fd);
+  const name = str(fd, "name");
+  if (!name) return { error: "Location name is required." };
+  await db.meetingLocation.create({
+    data: {
+      eventId: event.id,
+      name,
+      kind: str(fd, "kind") || "TABLE",
+      capacity: optInt(str(fd, "capacity")) ?? 2,
+    },
+  });
+  revalidatePath(`/dashboard/events/${event.id}/meetings`);
+  return { ok: true };
+}
+
+export async function deleteMeetingLocation(fd: FormData): Promise<void> {
+  const event = await authorize(fd);
+  await db.meetingLocation.deleteMany({ where: { id: str(fd, "id"), eventId: event.id } });
+  revalidatePath(`/dashboard/events/${event.id}/meetings`);
+}
+
+export async function createMeetingSlot(_prev: State | null, fd: FormData): Promise<State> {
+  const event = await authorize(fd);
+  const startsAt = optDate(str(fd, "startsAt"));
+  const endsAt = optDate(str(fd, "endsAt"));
+  if (!startsAt || !endsAt) return { error: "Both a start and end time are required." };
+  if (endsAt <= startsAt) return { error: "The end time must be after the start time." };
+  await db.meetingSlot.create({
+    data: {
+      eventId: event.id,
+      startsAt,
+      endsAt,
+      label: str(fd, "label") || null,
+    },
+  });
+  revalidatePath(`/dashboard/events/${event.id}/meetings`);
+  return { ok: true };
+}
+
+export async function deleteMeetingSlot(fd: FormData): Promise<void> {
+  const event = await authorize(fd);
+  await db.meetingSlot.deleteMany({ where: { id: str(fd, "id"), eventId: event.id } });
+  revalidatePath(`/dashboard/events/${event.id}/meetings`);
+}
+
+// --- Edit actions ----------------------------------------------------------
+
+export async function updateCompany(_prev: State | null, fd: FormData): Promise<State> {
+  const event = await authorize(fd);
+  const name = str(fd, "name");
+  if (!name) return { error: "Company name is required." };
+  await db.company.updateMany({
+    where: { id: str(fd, "id"), eventId: event.id },
+    data: {
+      name,
+      industry: str(fd, "industry") || null,
+      website: str(fd, "website") || null,
+      boothNumber: str(fd, "boothNumber") || null,
+      description: str(fd, "description") || null,
+      lookingFor: str(fd, "lookingFor") || null,
+      offering: str(fd, "offering") || null,
+    },
+  });
+  revalidatePath(`/dashboard/events/${event.id}/companies`);
+  return { ok: true };
+}
+
+export async function updateExhibitor(_prev: State | null, fd: FormData): Promise<State> {
+  const event = await authorize(fd);
+  const name = str(fd, "name");
+  if (!name) return { error: "Exhibitor name is required." };
+  await db.exhibitor.updateMany({
+    where: { id: str(fd, "id"), eventId: event.id },
+    data: {
+      name,
+      boothNumber: str(fd, "boothNumber") || null,
+      website: str(fd, "website") || null,
+      description: str(fd, "description") || null,
+    },
+  });
+  revalidatePath(`/dashboard/events/${event.id}/exhibitors`);
+  return { ok: true };
+}
+
+export async function updateCoupon(_prev: State | null, fd: FormData): Promise<State> {
+  const event = await authorize(fd);
+  const id = str(fd, "id");
+  const code = str(fd, "code").toUpperCase();
+  if (!code) return { error: "Coupon code is required." };
+
+  const kind = str(fd, "kind") || "PERCENT";
+  const rawValue = str(fd, "value");
+  let percentOff: number | null = null;
+  let amountOffCents: number | null = null;
+  if (kind === "PERCENT") {
+    const p = optInt(rawValue);
+    if (!p || p <= 0 || p > 100) return { error: "Enter a percentage between 1 and 100." };
+    percentOff = p;
+  } else {
+    const cents = dollarsToCents(rawValue);
+    if (cents <= 0) return { error: "Enter a discount amount greater than 0." };
+    amountOffCents = cents;
+  }
+
+  const dup = await db.coupon.findFirst({ where: { eventId: event.id, code, id: { not: id } } });
+  if (dup) return { error: `Code "${code}" is already used by another coupon.` };
+
+  await db.coupon.updateMany({
+    where: { id, eventId: event.id },
+    data: {
+      code,
+      percentOff,
+      amountOffCents,
+      maxRedemptions: optInt(str(fd, "maxRedemptions")),
+      isActive: fd.get("isActive") === "on",
+    },
+  });
+  revalidatePath(`/dashboard/events/${event.id}/tickets`);
+  return { ok: true };
+}
+
+export async function updateMarketplacePost(_prev: State | null, fd: FormData): Promise<State> {
+  const event = await authorize(fd);
+  const title = str(fd, "title");
+  if (!title) return { error: "A post title is required." };
+  await db.marketplacePost.updateMany({
+    where: { id: str(fd, "id"), eventId: event.id },
+    data: {
+      title,
+      authorName: str(fd, "authorName") || "Organizer",
+      kind: str(fd, "kind") || "OFFER",
+      category: str(fd, "category") || null,
+      description: str(fd, "description") || null,
+      audience: str(fd, "audience") || null,
+      keywords: keywordsToJson(str(fd, "keywords")),
+      sponsored: fd.get("sponsored") === "on",
+    },
+  });
+  revalidatePath(`/dashboard/events/${event.id}/marketplace`);
+  revalidatePath(`/e/${event.slug}`);
+  return { ok: true };
+}
+
+export async function updateMeetingLocation(_prev: State | null, fd: FormData): Promise<State> {
+  const event = await authorize(fd);
+  const name = str(fd, "name");
+  if (!name) return { error: "Location name is required." };
+  await db.meetingLocation.updateMany({
+    where: { id: str(fd, "id"), eventId: event.id },
+    data: { name, kind: str(fd, "kind") || "TABLE", capacity: optInt(str(fd, "capacity")) ?? 2 },
+  });
+  revalidatePath(`/dashboard/events/${event.id}/meetings`);
+  return { ok: true };
+}
+
+export async function updateMeetingSlot(_prev: State | null, fd: FormData): Promise<State> {
+  const event = await authorize(fd);
+  const startsAt = optDate(str(fd, "startsAt"));
+  const endsAt = optDate(str(fd, "endsAt"));
+  if (!startsAt || !endsAt) return { error: "Both a start and end time are required." };
+  if (endsAt <= startsAt) return { error: "The end time must be after the start time." };
+  await db.meetingSlot.updateMany({
+    where: { id: str(fd, "id"), eventId: event.id },
+    data: { startsAt, endsAt, label: str(fd, "label") || null },
+  });
+  revalidatePath(`/dashboard/events/${event.id}/meetings`);
+  return { ok: true };
+}

@@ -1,17 +1,90 @@
-import { Users, UserPlus, Search } from "lucide-react";
+import { Users, UserPlus, Search, Check, Clock, X, RotateCcw } from "lucide-react";
 import { getEventOr404 } from "@/lib/queries";
 import { ExportButton } from "@/components/ui/export-button";
 import { db } from "@/lib/db";
 import { StatCard, Avatar, EmptyState } from "@/components/ui/misc";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Button, type ButtonProps } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, THead, TBody, TR, TH, TD } from "@/components/ui/table";
 import { formatDate } from "@/lib/utils";
 import { REGISTRATION_STATUS } from "@/lib/constants";
+import { setRegistrationStatus } from "./actions";
 
 const STAT_ORDER = ["CONFIRMED", "PENDING", "CHECKED_IN", "WAITLISTED", "CANCELED"] as const;
+
+/** One-click registration status transition. */
+function StatusForm({
+  eventId,
+  id,
+  status,
+  variant,
+  children,
+}: {
+  eventId: string;
+  id: string;
+  status: string;
+  variant: ButtonProps["variant"];
+  children: React.ReactNode;
+}) {
+  return (
+    <form action={setRegistrationStatus}>
+      <input type="hidden" name="eventId" value={eventId} />
+      <input type="hidden" name="id" value={id} />
+      <input type="hidden" name="status" value={status} />
+      <Button type="submit" size="sm" variant={variant}>
+        {children}
+      </Button>
+    </form>
+  );
+}
+
+/** Contextual approval actions based on the registration's current status. */
+function RegistrationActions({ eventId, id, status }: { eventId: string; id: string; status: string }) {
+  if (status === "PENDING") {
+    return (
+      <>
+        <StatusForm eventId={eventId} id={id} status="CONFIRMED" variant="success">
+          <Check className="size-4" /> Approve
+        </StatusForm>
+        <StatusForm eventId={eventId} id={id} status="WAITLISTED" variant="outline">
+          <Clock className="size-4" /> Waitlist
+        </StatusForm>
+        <StatusForm eventId={eventId} id={id} status="CANCELED" variant="ghost">
+          <X className="size-4" /> Decline
+        </StatusForm>
+      </>
+    );
+  }
+  if (status === "WAITLISTED") {
+    return (
+      <>
+        <StatusForm eventId={eventId} id={id} status="CONFIRMED" variant="success">
+          <Check className="size-4" /> Approve
+        </StatusForm>
+        <StatusForm eventId={eventId} id={id} status="CANCELED" variant="ghost">
+          <X className="size-4" /> Decline
+        </StatusForm>
+      </>
+    );
+  }
+  if (status === "CONFIRMED") {
+    return (
+      <StatusForm eventId={eventId} id={id} status="CANCELED" variant="ghost">
+        <X className="size-4" /> Cancel
+      </StatusForm>
+    );
+  }
+  if (status === "CANCELED") {
+    return (
+      <StatusForm eventId={eventId} id={id} status="CONFIRMED" variant="outline">
+        <RotateCcw className="size-4" /> Restore
+      </StatusForm>
+    );
+  }
+  return <span className="text-xs text-muted-foreground">—</span>;
+}
 
 export default async function AttendeesPage({
   params,
@@ -114,6 +187,7 @@ export default async function AttendeesPage({
                   <TH>Ticket</TH>
                   <TH>Status</TH>
                   <TH>Registered</TH>
+                  <TH className="text-right">Actions</TH>
                 </TR>
               </THead>
               <TBody>
@@ -137,6 +211,11 @@ export default async function AttendeesPage({
                         <Badge tone={meta.tone}>{meta.label}</Badge>
                       </TD>
                       <TD className="text-muted-foreground">{formatDate(r.createdAt)}</TD>
+                      <TD>
+                        <div className="flex flex-wrap items-center justify-end gap-1.5">
+                          <RegistrationActions eventId={id} id={r.id} status={r.status} />
+                        </div>
+                      </TD>
                     </TR>
                   );
                 })}

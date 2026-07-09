@@ -1,4 +1,4 @@
-import { Ticket as TicketIcon, ShoppingCart, DollarSign, Plus, Tag } from "lucide-react";
+import { Ticket as TicketIcon, ShoppingCart, DollarSign, Tag } from "lucide-react";
 import { getEventOr404 } from "@/lib/queries";
 import { db } from "@/lib/db";
 import { StatCard, Progress, EmptyState } from "@/components/ui/misc";
@@ -10,14 +10,13 @@ import {
   CardContent,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Table, THead, TBody, TR, TH, TD } from "@/components/ui/table";
 import { Field, Input, Select, Textarea } from "@/components/ui/input";
 import { FormDialog } from "@/components/ui/form-dialog";
 import { DeleteButton } from "@/components/ui/delete-button";
 import { formatMoney, pct } from "@/lib/utils";
 import { TICKET_TYPES, labelOf } from "@/lib/constants";
-import { createTicket, updateTicket, deleteTicket } from "../manage-actions";
+import { createTicket, updateTicket, deleteTicket, createCoupon, updateCoupon, deleteCoupon } from "../manage-actions";
 
 const TYPE_TONE: Record<string, "neutral" | "primary" | "success" | "info"> = {
   FREE: "success",
@@ -112,6 +111,56 @@ export default async function TicketsPage({
       submitLabel="Create ticket"
     >
       {ticketFields()}
+    </FormDialog>
+  );
+
+  const couponFields = (c?: (typeof coupons)[number]) => (
+    <>
+      <input type="hidden" name="eventId" value={id} />
+      {c && <input type="hidden" name="id" value={c.id} />}
+      <Field label="Code" hint="Attendees enter this at checkout.">
+        <Input name="code" placeholder="EARLY25" className="uppercase" defaultValue={c?.code ?? ""} required />
+      </Field>
+      <div className="grid gap-4 sm:grid-cols-2">
+        <Field label="Discount type">
+          <Select name="kind" defaultValue={c ? (c.percentOff != null ? "PERCENT" : "AMOUNT") : "PERCENT"}>
+            <option value="PERCENT">Percentage off</option>
+            <option value="AMOUNT">Fixed amount off (USD)</option>
+          </Select>
+        </Field>
+        <Field label="Value" hint="e.g. 25 for 25% or $25.">
+          <Input
+            name="value"
+            type="number"
+            min="0"
+            step="0.01"
+            placeholder="25"
+            defaultValue={c ? (c.percentOff != null ? String(c.percentOff) : c.amountOffCents != null ? String(c.amountOffCents / 100) : "") : ""}
+            required
+          />
+        </Field>
+      </div>
+      <Field label="Max redemptions" hint="Blank = unlimited.">
+        <Input name="maxRedemptions" type="number" min="0" placeholder="100" defaultValue={c?.maxRedemptions != null ? String(c.maxRedemptions) : ""} />
+      </Field>
+      {c && (
+        <label className="flex items-center gap-2 text-sm">
+          <input type="checkbox" name="isActive" defaultChecked={c.isActive} className="size-4 accent-[hsl(243_75%_59%)]" /> Active
+        </label>
+      )}
+    </>
+  );
+
+  const newCouponDialog = (
+    <FormDialog
+      buttonLabel="New coupon"
+      title="New coupon"
+      description="Create a discount code for checkout."
+      action={createCoupon}
+      submitLabel="Create coupon"
+      buttonSize="sm"
+    >
+      {couponFields()}
     </FormDialog>
   );
 
@@ -246,11 +295,14 @@ export default async function TicketsPage({
       </Card>
 
       <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Tag className="size-4 text-primary" /> Coupons
-          </CardTitle>
-          <CardDescription>Discount codes attendees can apply at checkout.</CardDescription>
+        <CardHeader className="flex-row items-start justify-between space-y-0">
+          <div>
+            <CardTitle className="flex items-center gap-2">
+              <Tag className="size-4 text-primary" /> Coupons
+            </CardTitle>
+            <CardDescription>Discount codes attendees can apply at checkout.</CardDescription>
+          </div>
+          {coupons.length > 0 && newCouponDialog}
         </CardHeader>
         <CardContent>
           {coupons.length === 0 ? (
@@ -258,11 +310,7 @@ export default async function TicketsPage({
               icon={<Tag />}
               title="No coupons yet"
               description="Create promo codes to run early-bird or partner discounts."
-              action={
-                <Button variant="outline">
-                  <Plus /> New coupon
-                </Button>
-              }
+              action={newCouponDialog}
             />
           ) : (
             <Table>
@@ -272,6 +320,7 @@ export default async function TicketsPage({
                   <TH>Discount</TH>
                   <TH>Redemptions</TH>
                   <TH>Status</TH>
+                  <TH className="text-right">Actions</TH>
                 </TR>
               </THead>
               <TBody>
@@ -293,6 +342,26 @@ export default async function TicketsPage({
                       <Badge tone={c.isActive ? "success" : "neutral"}>
                         {c.isActive ? "Active" : "Inactive"}
                       </Badge>
+                    </TD>
+                    <TD>
+                      <div className="flex items-center justify-end gap-1">
+                        <FormDialog
+                          mode="edit"
+                          buttonLabel={`Edit ${c.code}`}
+                          title="Edit coupon"
+                          description="Update this discount code."
+                          action={updateCoupon}
+                          submitLabel="Save changes"
+                        >
+                          {couponFields(c)}
+                        </FormDialog>
+                        <DeleteButton
+                          action={deleteCoupon}
+                          id={c.id}
+                          eventId={id}
+                          confirmText={`Delete coupon "${c.code}"?`}
+                        />
+                      </div>
                     </TD>
                   </TR>
                 ))}
