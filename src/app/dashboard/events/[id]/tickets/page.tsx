@@ -17,7 +17,7 @@ import { FormDialog } from "@/components/ui/form-dialog";
 import { DeleteButton } from "@/components/ui/delete-button";
 import { formatMoney, pct } from "@/lib/utils";
 import { TICKET_TYPES, labelOf } from "@/lib/constants";
-import { createTicket, deleteTicket } from "../manage-actions";
+import { createTicket, updateTicket, deleteTicket } from "../manage-actions";
 
 const TYPE_TONE: Record<string, "neutral" | "primary" | "success" | "info"> = {
   FREE: "success",
@@ -45,35 +45,61 @@ export default async function TicketsPage({
     0
   );
 
-  const ticketFields = (
+  const ticketFields = (t?: (typeof tickets)[number]) => (
     <>
       <input type="hidden" name="eventId" value={id} />
+      {t && <input type="hidden" name="id" value={t.id} />}
       <Field label="Name">
-        <Input name="name" placeholder="General Admission" required />
+        <Input name="name" placeholder="General Admission" defaultValue={t?.name ?? ""} required />
       </Field>
       <div className="grid gap-4 sm:grid-cols-2">
         <Field label="Type">
-          <Select name="type" defaultValue="PAID">
+          <Select name="type" defaultValue={t?.type ?? "PAID"}>
             {Object.entries(TICKET_TYPES).map(([k, v]) => (
               <option key={k} value={k}>{v}</option>
             ))}
           </Select>
         </Field>
         <Field label="Price (USD)" hint="Ignored for free tickets.">
-          <Input name="price" type="number" min="0" step="0.01" placeholder="499" />
+          <Input
+            name="price"
+            type="number"
+            min="0"
+            step="0.01"
+            placeholder="499"
+            defaultValue={t && t.priceCents > 0 ? (t.priceCents / 100).toString() : ""}
+          />
         </Field>
       </div>
       <div className="grid gap-4 sm:grid-cols-2">
         <Field label="Quantity" hint="Blank = unlimited.">
-          <Input name="quantity" type="number" min="0" placeholder="400" />
+          <Input
+            name="quantity"
+            type="number"
+            min="0"
+            placeholder="400"
+            defaultValue={t?.quantity != null ? String(t.quantity) : ""}
+          />
         </Field>
         <label className="flex items-center gap-2 pt-8 text-sm">
-          <input type="checkbox" name="earlyBird" className="size-4 accent-[hsl(243_75%_59%)]" /> Early-bird pricing
+          <input
+            type="checkbox"
+            name="earlyBird"
+            defaultChecked={t?.earlyBird ?? false}
+            className="size-4 accent-[hsl(243_75%_59%)]"
+          />{" "}
+          Early-bird pricing
         </label>
       </div>
       <Field label="Description">
-        <Textarea name="description" rows={2} placeholder="What's included with this ticket." />
+        <Textarea name="description" rows={2} defaultValue={t?.description ?? ""} placeholder="What's included with this ticket." />
       </Field>
+      {t && (
+        <label className="flex items-center gap-2 text-sm">
+          <input type="checkbox" name="isActive" defaultChecked={t.isActive} className="size-4 accent-[hsl(243_75%_59%)]" />{" "}
+          Active (available for registration)
+        </label>
+      )}
     </>
   );
 
@@ -85,7 +111,7 @@ export default async function TicketsPage({
       action={createTicket}
       submitLabel="Create ticket"
     >
-      {ticketFields}
+      {ticketFields()}
     </FormDialog>
   );
 
@@ -136,7 +162,7 @@ export default async function TicketsPage({
                   action={createTicket}
                   submitLabel="Create ticket"
                 >
-                  {ticketFields}
+                  {ticketFields()}
                 </FormDialog>
               }
             />
@@ -191,7 +217,17 @@ export default async function TicketsPage({
                         </Badge>
                       </TD>
                       <TD>
-                        <div className="flex justify-end">
+                        <div className="flex items-center justify-end gap-1">
+                          <FormDialog
+                            mode="edit"
+                            buttonLabel={`Edit ${t.name}`}
+                            title="Edit ticket"
+                            description="Update this ticket type."
+                            action={updateTicket}
+                            submitLabel="Save changes"
+                          >
+                            {ticketFields(t)}
+                          </FormDialog>
                           <DeleteButton
                             action={deleteTicket}
                             id={t.id}

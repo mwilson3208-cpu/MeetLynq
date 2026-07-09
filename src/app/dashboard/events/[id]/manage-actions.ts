@@ -53,6 +53,30 @@ export async function createTicket(_prev: State | null, fd: FormData): Promise<S
   return { ok: true };
 }
 
+export async function updateTicket(_prev: State | null, fd: FormData): Promise<State> {
+  const event = await authorize(fd);
+  const id = str(fd, "id");
+  const name = str(fd, "name");
+  if (!name) return { error: "Ticket name is required." };
+  const type = str(fd, "type") || "PAID";
+  const priceCents = type === "FREE" ? 0 : dollarsToCents(str(fd, "price"));
+  await db.ticket.updateMany({
+    where: { id, eventId: event.id },
+    data: {
+      name,
+      type,
+      priceCents,
+      quantity: optInt(str(fd, "quantity")),
+      description: str(fd, "description") || null,
+      earlyBird: fd.get("earlyBird") === "on",
+      isActive: fd.get("isActive") === "on",
+    },
+  });
+  revalidatePath(`/dashboard/events/${event.id}/tickets`);
+  revalidatePath(`/e/${event.slug}`);
+  return { ok: true };
+}
+
 export async function deleteTicket(fd: FormData): Promise<void> {
   const event = await authorize(fd);
   await db.ticket.deleteMany({ where: { id: str(fd, "id"), eventId: event.id } });
@@ -69,6 +93,26 @@ export async function createSpeaker(_prev: State | null, fd: FormData): Promise<
   await db.speaker.create({
     data: {
       eventId: event.id,
+      name,
+      title: str(fd, "title") || null,
+      companyName: str(fd, "companyName") || null,
+      bio: str(fd, "bio") || null,
+      sessionTitle: str(fd, "sessionTitle") || null,
+      featured: fd.get("featured") === "on",
+    },
+  });
+  revalidatePath(`/dashboard/events/${event.id}/speakers`);
+  revalidatePath(`/e/${event.slug}`);
+  return { ok: true };
+}
+
+export async function updateSpeaker(_prev: State | null, fd: FormData): Promise<State> {
+  const event = await authorize(fd);
+  const name = str(fd, "name");
+  if (!name) return { error: "Speaker name is required." };
+  await db.speaker.updateMany({
+    where: { id: str(fd, "id"), eventId: event.id },
+    data: {
       name,
       title: str(fd, "title") || null,
       companyName: str(fd, "companyName") || null,
@@ -109,6 +153,24 @@ export async function createSponsor(_prev: State | null, fd: FormData): Promise<
   return { ok: true };
 }
 
+export async function updateSponsor(_prev: State | null, fd: FormData): Promise<State> {
+  const event = await authorize(fd);
+  const name = str(fd, "name");
+  if (!name) return { error: "Sponsor name is required." };
+  await db.sponsor.updateMany({
+    where: { id: str(fd, "id"), eventId: event.id },
+    data: {
+      name,
+      level: str(fd, "level") || "GOLD",
+      description: str(fd, "description") || null,
+      website: str(fd, "website") || null,
+    },
+  });
+  revalidatePath(`/dashboard/events/${event.id}/sponsors`);
+  revalidatePath(`/e/${event.slug}`);
+  return { ok: true };
+}
+
 export async function deleteSponsor(fd: FormData): Promise<void> {
   const event = await authorize(fd);
   await db.sponsor.deleteMany({ where: { id: str(fd, "id"), eventId: event.id } });
@@ -125,6 +187,28 @@ export async function createSession(_prev: State | null, fd: FormData): Promise<
   await db.session.create({
     data: {
       eventId: event.id,
+      title,
+      trackId: str(fd, "trackId") || null,
+      speakerId: str(fd, "speakerId") || null,
+      room: str(fd, "room") || null,
+      format: str(fd, "format") || "TALK",
+      capacity: optInt(str(fd, "capacity")),
+      startsAt: optDate(str(fd, "startsAt")),
+      endsAt: optDate(str(fd, "endsAt")),
+    },
+  });
+  revalidatePath(`/dashboard/events/${event.id}/agenda`);
+  revalidatePath(`/e/${event.slug}`);
+  return { ok: true };
+}
+
+export async function updateSession(_prev: State | null, fd: FormData): Promise<State> {
+  const event = await authorize(fd);
+  const title = str(fd, "title");
+  if (!title) return { error: "Session title is required." };
+  await db.session.updateMany({
+    where: { id: str(fd, "id"), eventId: event.id },
+    data: {
       title,
       trackId: str(fd, "trackId") || null,
       speakerId: str(fd, "speakerId") || null,

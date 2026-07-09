@@ -3,7 +3,7 @@
 import * as React from "react";
 import { useActionState } from "react";
 import { useFormStatus } from "react-dom";
-import { Plus } from "lucide-react";
+import { Plus, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
 
@@ -31,6 +31,7 @@ export function FormDialog({
   action,
   submitLabel = "Save",
   buttonSize = "md",
+  mode = "add",
   children,
 }: {
   buttonLabel: string;
@@ -39,6 +40,7 @@ export function FormDialog({
   action: Action;
   submitLabel?: string;
   buttonSize?: "sm" | "md" | "lg";
+  mode?: "add" | "edit";
   children: React.ReactNode;
 }) {
   const [open, setOpen] = React.useState(false);
@@ -50,9 +52,20 @@ export function FormDialog({
 
   return (
     <>
-      <Button size={buttonSize} onClick={() => setOpen(true)}>
-        <Plus className="size-4" /> {buttonLabel}
-      </Button>
+      {mode === "edit" ? (
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          className="inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+          aria-label={buttonLabel}
+        >
+          <Pencil className="size-4" />
+        </button>
+      ) : (
+        <Button size={buttonSize} onClick={() => setOpen(true)}>
+          <Plus className="size-4" /> {buttonLabel}
+        </Button>
+      )}
       <Dialog open={open} onClose={() => setOpen(false)} title={title} description={description}>
         <form action={formAction} className="space-y-4">
           {children}
