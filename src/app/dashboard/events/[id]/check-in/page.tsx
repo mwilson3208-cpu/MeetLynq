@@ -1,12 +1,4 @@
-import {
-  ScanLine,
-  UserCheck,
-  Users,
-  WifiOff,
-  Gauge,
-  Search,
-  QrCode,
-} from "lucide-react";
+import { UserCheck, Users, WifiOff, Gauge, QrCode, Undo2 } from "lucide-react";
 import { getEventOr404, getEventStats } from "@/lib/queries";
 import { db } from "@/lib/db";
 import { StatCard } from "@/components/ui/misc";
@@ -18,9 +10,9 @@ import {
   CardContent,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { formatDateTime, pct } from "@/lib/utils";
+import { CheckInPanel } from "@/components/checkin/check-in-panel";
+import { checkInByLookup, undoCheckIn } from "./actions";
 
 const METHOD_TONE: Record<string, "primary" | "neutral" | "info"> = {
   QR: "primary",
@@ -63,9 +55,6 @@ export default async function CheckInPage({
           <Badge tone="info">
             <Gauge className="size-3" /> Low-bandwidth mode
           </Badge>
-          <Button variant="primary">
-            <ScanLine /> Start scanning
-          </Button>
         </div>
       </div>
 
@@ -84,25 +73,17 @@ export default async function CheckInPage({
       <div className="grid gap-6 lg:grid-cols-2">
         <Card>
           <CardHeader>
-            <CardTitle>Scanner</CardTitle>
-            <CardDescription>Point a camera at an attendee&apos;s QR badge.</CardDescription>
+            <CardTitle>Check attendees in</CardTitle>
+            <CardDescription>Scan a QR badge into the field, or search by name or email.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="flex aspect-square w-full max-w-xs mx-auto flex-col items-center justify-center rounded-xl border-2 border-dashed bg-secondary/30 text-center">
-              <QrCode className="size-16 text-muted-foreground" />
-              <p className="mt-3 text-sm text-muted-foreground">
-                Waiting for a code…
+            <div className="mx-auto flex aspect-square w-full max-w-[11rem] flex-col items-center justify-center rounded-xl border-2 border-dashed bg-secondary/30 text-center">
+              <QrCode className="size-14 text-muted-foreground" />
+              <p className="mt-2 px-4 text-xs text-muted-foreground">
+                A QR scanner types the code into the field below.
               </p>
             </div>
-            <div className="space-y-2">
-              <div className="relative">
-                <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-                <Input placeholder="Search by name, email, or ticket ID…" className="pl-9" />
-              </div>
-              <Button variant="success" className="w-full">
-                <UserCheck /> Check in
-              </Button>
-            </div>
+            <CheckInPanel action={checkInByLookup} eventId={id} />
           </CardContent>
         </Card>
 
@@ -129,7 +110,21 @@ export default async function CheckInPage({
                         {formatDateTime(c.checkedInAt)}
                       </p>
                     </div>
-                    <Badge tone={METHOD_TONE[c.method] ?? "neutral"}>{c.method}</Badge>
+                    <div className="flex items-center gap-2">
+                      <Badge tone={METHOD_TONE[c.method] ?? "neutral"}>{c.method}</Badge>
+                      <form action={undoCheckIn}>
+                        <input type="hidden" name="eventId" value={id} />
+                        <input type="hidden" name="id" value={c.registrationId} />
+                        <button
+                          type="submit"
+                          aria-label="Undo check-in"
+                          title="Undo check-in"
+                          className="flex size-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground [&_svg]:size-4"
+                        >
+                          <Undo2 />
+                        </button>
+                      </form>
+                    </div>
                   </li>
                 ))}
               </ul>
