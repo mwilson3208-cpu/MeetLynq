@@ -1,11 +1,15 @@
-import { Plus, Store } from "lucide-react";
+import { Store } from "lucide-react";
 import { getEventOr404 } from "@/lib/queries";
 import { db } from "@/lib/db";
 import { parseJson } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Input, Field, Select, Textarea } from "@/components/ui/input";
+import { FormDialog } from "@/components/ui/form-dialog";
+import { DeleteButton } from "@/components/ui/delete-button";
 import { Avatar, EmptyState, Separator } from "@/components/ui/misc";
+import { createMarketplacePost, deleteMarketplacePost } from "../manage-actions";
 
 export default async function MarketplacePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -18,6 +22,47 @@ export default async function MarketplacePage({ params }: { params: Promise<{ id
 
   const filters = ["All", "Offers", "Needs"];
 
+  const postFields = (
+    <>
+      <input type="hidden" name="eventId" value={id} />
+      <Field label="Title">
+        <Input name="title" placeholder="Offering pilot pricing for startups" required />
+      </Field>
+      <div className="grid gap-4 sm:grid-cols-2">
+        <Field label="Type">
+          <Select name="kind" defaultValue="OFFER">
+            <option value="OFFER">Offer</option>
+            <option value="NEED">Need</option>
+          </Select>
+        </Field>
+        <Field label="Category">
+          <Input name="category" placeholder="Partnership" />
+        </Field>
+      </div>
+      <Field label="Posted by">
+        <Input name="authorName" placeholder="Organizer" />
+      </Field>
+      <Field label="Target audience">
+        <Input name="audience" placeholder="Early-stage founders" />
+      </Field>
+      <Field label="Keywords" hint="Comma-separated.">
+        <Input name="keywords" placeholder="GTM, Growth" />
+      </Field>
+      <Field label="Description">
+        <Textarea name="description" rows={2} placeholder="Details of the offer or need." />
+      </Field>
+      <label className="flex items-center gap-2 text-sm">
+        <input type="checkbox" name="sponsored" className="size-4 accent-[hsl(243_75%_59%)]" /> Mark as sponsored
+      </label>
+    </>
+  );
+
+  const newPostDialog = (
+    <FormDialog buttonLabel="Create post" title="Create marketplace post" action={createMarketplacePost} submitLabel="Create post">
+      {postFields}
+    </FormDialog>
+  );
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -25,9 +70,7 @@ export default async function MarketplacePage({ params }: { params: Promise<{ id
           <h2 className="text-lg font-semibold">Marketplace</h2>
           <p className="text-sm text-muted-foreground">Offers and needs posted by your community.</p>
         </div>
-        <Button>
-          <Plus className="size-4" /> Create post
-        </Button>
+        {newPostDialog}
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
@@ -44,9 +87,9 @@ export default async function MarketplacePage({ params }: { params: Promise<{ id
           title="No posts yet"
           description="Let attendees post what they're offering or looking for to spark connections."
           action={
-            <Button>
-              <Plus className="size-4" /> Create post
-            </Button>
+            <FormDialog buttonLabel="Create post" title="Create marketplace post" action={createMarketplacePost} submitLabel="Create post">
+              {postFields}
+            </FormDialog>
           }
         />
       ) : (
@@ -58,8 +101,16 @@ export default async function MarketplacePage({ params }: { params: Promise<{ id
               <Card key={post.id}>
                 <CardContent className="space-y-4 p-5">
                   <div className="flex items-start justify-between gap-2">
-                    <Badge tone={isOffer ? "primary" : "info"}>{isOffer ? "Offer" : "Need"}</Badge>
-                    {post.sponsored && <Badge tone="warning">Sponsored</Badge>}
+                    <div className="flex items-center gap-2">
+                      <Badge tone={isOffer ? "primary" : "info"}>{isOffer ? "Offer" : "Need"}</Badge>
+                      {post.sponsored && <Badge tone="warning">Sponsored</Badge>}
+                    </div>
+                    <DeleteButton
+                      action={deleteMarketplacePost}
+                      id={post.id}
+                      eventId={id}
+                      confirmText={`Delete "${post.title}"?`}
+                    />
                   </div>
 
                   <div>

@@ -326,3 +326,91 @@ export async function deleteCoupon(fd: FormData): Promise<void> {
   await db.coupon.deleteMany({ where: { id: str(fd, "id"), eventId: event.id } });
   revalidatePath(`/dashboard/events/${event.id}/tickets`);
 }
+
+// --- Marketplace -----------------------------------------------------------
+
+function keywordsToJson(v: string): string {
+  const list = v
+    .split(",")
+    .map((k) => k.trim())
+    .filter(Boolean);
+  return JSON.stringify(list);
+}
+
+export async function createMarketplacePost(_prev: State | null, fd: FormData): Promise<State> {
+  const event = await authorize(fd);
+  const title = str(fd, "title");
+  if (!title) return { error: "A post title is required." };
+  const authorName = str(fd, "authorName") || "Organizer";
+  await db.marketplacePost.create({
+    data: {
+      eventId: event.id,
+      title,
+      authorName,
+      kind: str(fd, "kind") || "OFFER",
+      category: str(fd, "category") || null,
+      description: str(fd, "description") || null,
+      audience: str(fd, "audience") || null,
+      keywords: keywordsToJson(str(fd, "keywords")),
+      sponsored: fd.get("sponsored") === "on",
+    },
+  });
+  revalidatePath(`/dashboard/events/${event.id}/marketplace`);
+  revalidatePath(`/e/${event.slug}`);
+  return { ok: true };
+}
+
+export async function deleteMarketplacePost(fd: FormData): Promise<void> {
+  const event = await authorize(fd);
+  await db.marketplacePost.deleteMany({ where: { id: str(fd, "id"), eventId: event.id } });
+  revalidatePath(`/dashboard/events/${event.id}/marketplace`);
+  revalidatePath(`/e/${event.slug}`);
+}
+
+// --- Meeting locations & slots --------------------------------------------
+
+export async function createMeetingLocation(_prev: State | null, fd: FormData): Promise<State> {
+  const event = await authorize(fd);
+  const name = str(fd, "name");
+  if (!name) return { error: "Location name is required." };
+  await db.meetingLocation.create({
+    data: {
+      eventId: event.id,
+      name,
+      kind: str(fd, "kind") || "TABLE",
+      capacity: optInt(str(fd, "capacity")) ?? 2,
+    },
+  });
+  revalidatePath(`/dashboard/events/${event.id}/meetings`);
+  return { ok: true };
+}
+
+export async function deleteMeetingLocation(fd: FormData): Promise<void> {
+  const event = await authorize(fd);
+  await db.meetingLocation.deleteMany({ where: { id: str(fd, "id"), eventId: event.id } });
+  revalidatePath(`/dashboard/events/${event.id}/meetings`);
+}
+
+export async function createMeetingSlot(_prev: State | null, fd: FormData): Promise<State> {
+  const event = await authorize(fd);
+  const startsAt = optDate(str(fd, "startsAt"));
+  const endsAt = optDate(str(fd, "endsAt"));
+  if (!startsAt || !endsAt) return { error: "Both a start and end time are required." };
+  if (endsAt <= startsAt) return { error: "The end time must be after the start time." };
+  await db.meetingSlot.create({
+    data: {
+      eventId: event.id,
+      startsAt,
+      endsAt,
+      label: str(fd, "label") || null,
+    },
+  });
+  revalidatePath(`/dashboard/events/${event.id}/meetings`);
+  return { ok: true };
+}
+
+export async function deleteMeetingSlot(fd: FormData): Promise<void> {
+  const event = await authorize(fd);
+  await db.meetingSlot.deleteMany({ where: { id: str(fd, "id"), eventId: event.id } });
+  revalidatePath(`/dashboard/events/${event.id}/meetings`);
+}
