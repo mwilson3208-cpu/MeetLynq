@@ -16,7 +16,7 @@ export default async function RegisteredPage({
   searchParams,
 }: {
   params: Promise<{ slug: string }>;
-  searchParams: Promise<{ order?: string; free?: string; mock?: string }>;
+  searchParams: Promise<{ order?: string; free?: string; mock?: string; approval?: string }>;
 }) {
   const { slug } = await params;
   const sp = await searchParams;
@@ -24,7 +24,8 @@ export default async function RegisteredPage({
   const event = await db.event.findUnique({ where: { slug } });
   if (!event) notFound();
 
-  const isFree = sp.free === "1";
+  const awaitingApproval = sp.approval === "1";
+  const isFree = sp.free === "1" && !awaitingApproval;
   let paid = false;
   let pending = false;
 
@@ -62,16 +63,18 @@ export default async function RegisteredPage({
             </div>
 
             <h1 className="mt-5 text-2xl font-bold tracking-tight">
-              {confirmed ? "You're registered!" : "Almost there…"}
+              {confirmed ? "You're registered!" : awaitingApproval ? "Request received!" : "Almost there…"}
             </h1>
             <p className="mx-auto mt-2 max-w-sm text-muted-foreground">
-              {isFree
-                ? `Your spot at ${event.name} is confirmed. We've emailed your ticket and event details.`
-                : paid
-                  ? `Payment confirmed — your spot at ${event.name} is booked. Check your email for your ticket and receipt.`
-                  : pending
-                    ? "We've received your payment and are confirming your spot. This can take a few moments — your confirmation email is on the way."
-                    : `Thanks for registering for ${event.name}.`}
+              {awaitingApproval
+                ? `Your registration for ${event.name} is awaiting organizer approval. We'll email you as soon as it's confirmed.`
+                : isFree
+                  ? `Your spot at ${event.name} is confirmed. We've emailed your ticket and event details.`
+                  : paid
+                    ? `Payment confirmed — your spot at ${event.name} is booked. Check your email for your ticket and receipt.`
+                    : pending
+                      ? "We've received your payment and are confirming your spot. This can take a few moments — your confirmation email is on the way."
+                      : `Thanks for registering for ${event.name}.`}
             </p>
 
             <div className="mt-6 flex items-center justify-center gap-2 rounded-lg border bg-card px-4 py-3 text-sm">

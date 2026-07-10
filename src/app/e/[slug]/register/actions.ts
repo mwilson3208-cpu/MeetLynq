@@ -48,7 +48,7 @@ export async function registerForEvent(_prev: RegisterState, formData: FormData)
       lastName,
       email,
     });
-    redirect(`/e/${slug}/registered?free=1`);
+    redirect(`/e/${slug}/registered?free=1${ticket.requiresApproval ? "&approval=1" : ""}`);
   }
 
   // Paid ticket → create a pending order and go to checkout.
