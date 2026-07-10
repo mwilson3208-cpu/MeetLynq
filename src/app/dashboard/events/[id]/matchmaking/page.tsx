@@ -6,6 +6,8 @@ import {
   ArrowLeftRight,
   Wand2,
   ShieldCheck,
+  Pin,
+  Trash2,
 } from "lucide-react";
 import { db } from "@/lib/db";
 import { getEventOr404 } from "@/lib/queries";
@@ -15,6 +17,20 @@ import { StatCard, Avatar, Progress, Separator, EmptyState } from "@/components/
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input, Field } from "@/components/ui/input";
+import { FormDialog } from "@/components/ui/form-dialog";
+import { runMatchmaking, updateMatchRules, toggleMatchOverride, deleteMatch } from "./actions";
+
+function RunButton({ eventId }: { eventId: string }) {
+  return (
+    <form action={runMatchmaking}>
+      <input type="hidden" name="eventId" value={eventId} />
+      <Button type="submit">
+        <Wand2 /> Run matchmaking
+      </Button>
+    </form>
+  );
+}
 
 type MatchRules = {
   allowBuyerSeller?: boolean;
@@ -59,9 +75,7 @@ export default async function MatchmakingPage({
             and overridable by the organizer.
           </p>
         </div>
-        <Button>
-          <Wand2 /> Run matchmaking
-        </Button>
+        <RunButton eventId={id} />
       </div>
 
       <div className="grid gap-4 sm:grid-cols-3">
@@ -71,14 +85,29 @@ export default async function MatchmakingPage({
       </div>
 
       <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <ShieldCheck className="size-4 text-primary" /> Organizer match rules
-          </CardTitle>
-          <CardDescription>
-            Constraints applied before AI scoring. Organizers can manually override any
-            suggested match.
-          </CardDescription>
+        <CardHeader className="flex-row items-start justify-between gap-2 space-y-0">
+          <div>
+            <CardTitle className="flex items-center gap-2">
+              <ShieldCheck className="size-4 text-primary" /> Organizer match rules
+            </CardTitle>
+            <CardDescription>
+              Constraints applied before scoring. Organizers can manually override any suggested match.
+            </CardDescription>
+          </div>
+          <FormDialog buttonLabel="Edit rules" title="Match rules" action={updateMatchRules} submitLabel="Save rules" buttonSize="sm">
+            <input type="hidden" name="eventId" value={id} />
+            <Field label="Minimum score" hint="0–100. Pairs scoring below this aren't suggested.">
+              <Input name="minScore" type="number" min="0" max="100" defaultValue={String(rules.minScore ?? 40)} />
+            </Field>
+            <label className="flex items-center gap-2 text-sm">
+              <input type="checkbox" name="allowBuyerSeller" defaultChecked={rules.allowBuyerSeller ?? true} className="size-4 accent-[hsl(243_75%_59%)]" />
+              Allow buyer / seller intros
+            </label>
+            <label className="flex items-center gap-2 text-sm">
+              <input type="checkbox" name="allowInvestorFounder" defaultChecked={rules.allowInvestorFounder ?? true} className="size-4 accent-[hsl(243_75%_59%)]" />
+              Allow investor / founder intros
+            </label>
+          </FormDialog>
         </CardHeader>
         <CardContent className="space-y-3">
           <div className="grid gap-3 sm:grid-cols-3">
@@ -93,7 +122,7 @@ export default async function MatchmakingPage({
             ))}
             <div className="flex items-center justify-between rounded-lg border p-3 text-sm">
               <span className="text-muted-foreground">Minimum score</span>
-              <Badge tone="info">{rules.minScore ?? 0}</Badge>
+              <Badge tone="info">{rules.minScore ?? 40}</Badge>
             </div>
           </div>
           <p className="text-xs text-muted-foreground">
@@ -107,11 +136,7 @@ export default async function MatchmakingPage({
           icon={<Sparkles />}
           title="No matches yet"
           description="Run matchmaking to generate AI-scored connections between your participants."
-          action={
-            <Button>
-              <Wand2 /> Run matchmaking
-            </Button>
-          }
+          action={<RunButton eventId={id} />}
         />
       ) : (
         <div className="grid gap-4 lg:grid-cols-2">
@@ -206,10 +231,20 @@ export default async function MatchmakingPage({
                   </div>
 
                   <div className="flex gap-2 pt-1">
-                    <Button size="sm">Introduce</Button>
-                    <Button size="sm" variant="outline">
-                      Override
-                    </Button>
+                    <form action={toggleMatchOverride}>
+                      <input type="hidden" name="eventId" value={id} />
+                      <input type="hidden" name="id" value={m.id} />
+                      <Button type="submit" size="sm" variant={m.overridden ? "secondary" : "outline"}>
+                        <Pin className="size-4" /> {m.overridden ? "Unpin" : "Pin match"}
+                      </Button>
+                    </form>
+                    <form action={deleteMatch}>
+                      <input type="hidden" name="eventId" value={id} />
+                      <input type="hidden" name="id" value={m.id} />
+                      <Button type="submit" size="sm" variant="ghost">
+                        <Trash2 className="size-4" /> Dismiss
+                      </Button>
+                    </form>
                   </div>
                 </CardContent>
               </Card>
