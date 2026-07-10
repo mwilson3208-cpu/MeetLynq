@@ -24,7 +24,7 @@ const rawUrl =
  * `connection_limit=1` for serverless, even if the operator forgot to append
  * them to the string. Direct (5432) connections are left untouched.
  */
-function normalizePoolerUrl(url: string | undefined): string | undefined {
+export function normalizePoolerUrl(url: string | undefined): string | undefined {
   if (!url) return url;
   try {
     const u = new URL(url);

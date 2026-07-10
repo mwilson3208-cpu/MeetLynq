@@ -53,7 +53,8 @@ export function slugify(input: string) {
     .replace(/[^a-z0-9\s-]/g, "")
     .replace(/\s+/g, "-")
     .replace(/-+/g, "-")
-    .slice(0, 60);
+    .slice(0, 60)
+    .replace(/^-+|-+$/g, "");
 }
 
 /** Safely parse a JSON string column, returning a fallback on failure. */
