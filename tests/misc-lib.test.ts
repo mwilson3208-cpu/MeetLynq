@@ -78,6 +78,21 @@ describe("ai.generate (mock provider)", () => {
     const r = await generate("event_description");
     assert.ok(r.output.includes("your event"));
   });
+  it("uses input.title when name is absent", async () => {
+    const r = await generate("event_description", { title: "TitleOnlyCon" });
+    assert.ok(r.output.includes("TitleOnlyCon"));
+  });
+  it("returns generic draft copy for an unknown task (default arm)", async () => {
+    const r = await generate("mystery_task" as AiTask, { name: "X" });
+    assert.ok(r.output.includes("Draft copy for X"));
+  });
+  it("interpolates optional inputs instead of fallbacks when provided", async () => {
+    const bio = await generate("speaker_bio", { name: "Dr. Q", industry: "robotics" });
+    assert.ok(bio.output.includes("robotics"));
+    const msg = await generate("match_message", { to: "Sam", topic: "supply chains" });
+    assert.ok(msg.output.includes("Sam"));
+    assert.ok(msg.output.includes("supply chains"));
+  });
 });
 
 describe("qr.qrSvg", () => {
