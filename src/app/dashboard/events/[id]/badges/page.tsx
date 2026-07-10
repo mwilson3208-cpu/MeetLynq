@@ -1,8 +1,11 @@
-import { IdCard, QrCode, Download, Printer } from "lucide-react";
+import { IdCard, Wand2, Download } from "lucide-react";
 import { getEventOr404 } from "@/lib/queries";
 import { db } from "@/lib/db";
+import { qrSvg } from "@/lib/qr";
 import { StatCard, EmptyState } from "@/components/ui/misc";
-import { Button } from "@/components/ui/button";
+import { Button, ButtonLink } from "@/components/ui/button";
+import { BadgeCard } from "./badge-card";
+import { generateBadges } from "./actions";
 
 export default async function BadgesPage({
   params,
@@ -12,11 +15,26 @@ export default async function BadgesPage({
   const { id } = await params;
   const event = await getEventOr404(id);
 
-  const badges = await db.badge.findMany({
-    where: { eventId: id },
-    include: { registration: true },
-    take: 24,
-  });
+  const [badges, pending] = await Promise.all([
+    db.badge.findMany({
+      where: { eventId: id },
+      include: { registration: true },
+      orderBy: { createdAt: "desc" },
+      take: 60,
+    }),
+    db.registration.count({ where: { eventId: id, status: { not: "CANCELED" }, badge: { is: null } } }),
+  ]);
+
+  const qrs = await Promise.all(badges.map((b) => qrSvg(b.qrToken)));
+
+  const generateForm = (
+    <form action={generateBadges}>
+      <input type="hidden" name="eventId" value={id} />
+      <Button type="submit" variant="primary">
+        <Wand2 /> Generate badges{pending > 0 ? ` (${pending})` : ""}
+      </Button>
+    </form>
+  );
 
   return (
     <div className="space-y-6">
@@ -27,60 +45,55 @@ export default async function BadgesPage({
             Printable name badges with scannable QR codes.
           </p>
         </div>
-        <Button variant="primary" disabled={badges.length === 0}>
-          <Download /> Download all (PDF)
-        </Button>
+        <div className="flex items-center gap-2">
+          {pending > 0 && generateForm}
+          {badges.length > 0 && (
+            <ButtonLink href={`/dashboard/events/${id}/badges/print`} variant="outline">
+              <Download className="size-4" /> Download all (PDF)
+            </ButtonLink>
+          )}
+        </div>
       </div>
 
-      <div className="grid gap-4 sm:max-w-xs">
+      <div className="grid gap-4 sm:max-w-md sm:grid-cols-2">
         <StatCard label="Badges generated" value={badges.length} icon={<IdCard />} />
+        <StatCard
+          label="Awaiting a badge"
+          value={pending}
+          icon={<Wand2 />}
+          tone={pending > 0 ? "warning" : "success"}
+        />
       </div>
 
       {badges.length === 0 ? (
         <EmptyState
           icon={<IdCard />}
           title="No badges yet"
-          description="Badges are generated when attendees check in or register."
+          description="Badges are created automatically at check-in — or generate them now for everyone who's registered."
+          action={pending > 0 ? generateForm : undefined}
         />
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-          {badges.map((b) => {
-            const name = `${b.registration.firstName} ${b.registration.lastName}`;
-            return (
-              <div
-                key={b.id}
-                className="flex flex-col overflow-hidden rounded-xl border bg-card shadow-sm"
+          {badges.map((b, i) => (
+            <div key={b.id} className="flex flex-col gap-2">
+              <BadgeCard
+                eventName={event.name}
+                name={`${b.registration.firstName} ${b.registration.lastName}`}
+                title={b.title}
+                company={b.company}
+                qr={qrs[i]}
+                token={b.qrToken}
+              />
+              <ButtonLink
+                href={`/dashboard/events/${id}/badges/print?badge=${b.id}`}
+                variant="outline"
+                size="sm"
+                className="w-full"
               >
-                <div className="border-b bg-secondary/40 px-4 py-2">
-                  <p className="truncate text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                    {event.name}
-                  </p>
-                </div>
-                <div className="flex flex-1 flex-col items-center gap-3 p-5 text-center">
-                  <div className="flex size-24 items-center justify-center rounded-lg border bg-white">
-                    <QrCode className="size-16 text-foreground" />
-                  </div>
-                  <div>
-                    <p className="text-lg font-semibold leading-tight">{name}</p>
-                    {b.title && (
-                      <p className="text-sm text-muted-foreground">{b.title}</p>
-                    )}
-                    {b.company && (
-                      <p className="text-sm font-medium text-foreground">{b.company}</p>
-                    )}
-                  </div>
-                  <p className="font-mono text-[10px] text-muted-foreground">
-                    {b.qrToken.slice(0, 12)}…
-                  </p>
-                </div>
-                <div className="border-t p-3">
-                  <Button variant="outline" size="sm" className="w-full">
-                    <Printer /> Print
-                  </Button>
-                </div>
-              </div>
-            );
-          })}
+                Print
+              </ButtonLink>
+            </div>
+          ))}
         </div>
       )}
     </div>

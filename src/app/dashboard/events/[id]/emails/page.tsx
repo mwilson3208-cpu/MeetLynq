@@ -1,4 +1,4 @@
-import { Mail, Plus, Send, Users, MailOpen, Sparkles } from "lucide-react";
+import { Mail, Send, Users, MailOpen, Sparkles } from "lucide-react";
 import { getEventOr404 } from "@/lib/queries";
 import { db } from "@/lib/db";
 import { generate } from "@/lib/ai";
@@ -6,19 +6,19 @@ import { StatCard, EmptyState } from "@/components/ui/misc";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Field, Input, Textarea, Select } from "@/components/ui/input";
 import { Table, THead, TBody, TR, TH, TD } from "@/components/ui/table";
+import { DeleteButton } from "@/components/ui/delete-button";
 import { pct } from "@/lib/utils";
 import { CAMPAIGN_STATUS } from "@/lib/constants";
+import { sendCampaign, deleteCampaign } from "./actions";
+import { Composer } from "./composer";
 
-const SEGMENTS = [
-  { value: "ALL", label: "All" },
-  { value: "REGISTERED", label: "Registered" },
-  { value: "PENDING", label: "Pending" },
-  { value: "CHECKED_IN", label: "Checked-in" },
-  { value: "SPEAKERS", label: "Speakers" },
-  { value: "SPONSORS", label: "Sponsors" },
-];
+const SEGMENT_LABEL: Record<string, string> = {
+  ALL: "All attendees",
+  REGISTERED: "Registered (confirmed)",
+  PENDING: "Pending",
+  CHECKED_IN: "Checked-in",
+};
 
 export default async function EmailsPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -37,16 +37,11 @@ export default async function EmailsPage({ params }: { params: Promise<{ id: str
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h2 className="text-lg font-semibold">Email campaigns</h2>
-          <p className="text-sm text-muted-foreground">
-            Build, segment, and measure your event communications.
-          </p>
-        </div>
-        <Button variant="primary">
-          <Plus /> New campaign
-        </Button>
+      <div>
+        <h2 className="text-lg font-semibold">Email campaigns</h2>
+        <p className="text-sm text-muted-foreground">
+          Build, segment, and measure your event communications.
+        </p>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-3">
@@ -58,7 +53,10 @@ export default async function EmailsPage({ params }: { params: Promise<{ id: str
       <Card>
         <CardHeader>
           <CardTitle>Campaigns</CardTitle>
-          <CardDescription>Performance across all sends for this event.</CardDescription>
+          <CardDescription>
+            Draft campaigns can be sent to their segment. Recipient counts reflect real matching
+            registrations at send time.
+          </CardDescription>
         </CardHeader>
         <CardContent className="p-0">
           {campaigns.length === 0 ? (
@@ -66,12 +64,7 @@ export default async function EmailsPage({ params }: { params: Promise<{ id: str
               <EmptyState
                 icon={<Mail />}
                 title="No campaigns yet"
-                description="Create your first campaign to reach attendees, speakers, or sponsors."
-                action={
-                  <Button variant="primary">
-                    <Plus /> New campaign
-                  </Button>
-                }
+                description="Draft your first campaign in the composer below to reach attendees."
               />
             </div>
           ) : (
@@ -84,28 +77,43 @@ export default async function EmailsPage({ params }: { params: Promise<{ id: str
                   <TH>Status</TH>
                   <TH>Recipients</TH>
                   <TH>Open rate</TH>
-                  <TH>Click rate</TH>
+                  <TH>Actions</TH>
                 </TR>
               </THead>
               <TBody>
                 {campaigns.map((c) => {
-                  const meta = CAMPAIGN_STATUS[c.status] ?? {
-                    label: c.status,
-                    tone: "neutral" as const,
-                  };
+                  const meta = CAMPAIGN_STATUS[c.status] ?? { label: c.status, tone: "neutral" as const };
                   return (
                     <TR key={c.id}>
                       <TD className="font-medium">{c.name}</TD>
                       <TD className="max-w-xs truncate text-muted-foreground">{c.subject}</TD>
                       <TD>
-                        <Badge tone="neutral">{c.segment}</Badge>
+                        <Badge tone="neutral">{SEGMENT_LABEL[c.segment] ?? c.segment}</Badge>
                       </TD>
                       <TD>
                         <Badge tone={meta.tone}>{meta.label}</Badge>
                       </TD>
                       <TD>{c.recipients}</TD>
                       <TD>{pct(c.opens, c.recipients)}%</TD>
-                      <TD>{pct(c.clicks, c.recipients)}%</TD>
+                      <TD>
+                        <div className="flex items-center gap-1">
+                          {c.status !== "SENT" && (
+                            <form action={sendCampaign}>
+                              <input type="hidden" name="eventId" value={id} />
+                              <input type="hidden" name="id" value={c.id} />
+                              <Button type="submit" size="sm" variant="outline">
+                                <Send className="size-4" /> Send
+                              </Button>
+                            </form>
+                          )}
+                          <DeleteButton
+                            action={deleteCampaign}
+                            id={c.id}
+                            eventId={id}
+                            confirmText="Delete this campaign?"
+                          />
+                        </div>
+                      </TD>
                     </TR>
                   );
                 })}
@@ -121,27 +129,8 @@ export default async function EmailsPage({ params }: { params: Promise<{ id: str
             <CardTitle>Composer</CardTitle>
             <CardDescription>Draft a new campaign and pick an audience segment.</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <Field label="Subject">
-              <Input placeholder="e.g. Your schedule for the big day" />
-            </Field>
-            <Field label="Segment">
-              <Select defaultValue="ALL">
-                {SEGMENTS.map((s) => (
-                  <option key={s.value} value={s.value}>
-                    {s.label}
-                  </option>
-                ))}
-              </Select>
-            </Field>
-            <Field label="Body">
-              <Textarea placeholder="Write your message…" />
-            </Field>
-            <div className="flex justify-end">
-              <Button variant="primary">
-                <Send /> Save campaign
-              </Button>
-            </div>
+          <CardContent>
+            <Composer eventId={id} />
           </CardContent>
         </Card>
 
