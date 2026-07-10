@@ -31,7 +31,7 @@ export default async function TicketsPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const event = await getEventOr404(id);
+  await getEventOr404(id); // authorize: 404s if the current org doesn't own this event
 
   const [tickets, coupons] = await Promise.all([
     db.ticket.findMany({ where: { eventId: id }, orderBy: { priceCents: "asc" } }),

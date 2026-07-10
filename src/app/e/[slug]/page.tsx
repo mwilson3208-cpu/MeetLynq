@@ -8,7 +8,7 @@ import {
   Clock,
 } from "lucide-react";
 import { db } from "@/lib/db";
-import { cn, formatMoney, formatDate, formatTime } from "@/lib/utils";
+import { formatMoney, formatDate, formatTime } from "@/lib/utils";
 import {
   labelOf,
   EVENT_TYPES,

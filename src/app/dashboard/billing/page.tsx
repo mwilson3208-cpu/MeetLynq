@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Table, THead, TBody, TR, TH, TD } from "@/components/ui/table";
 import type { Tone } from "@/lib/constants";
 import { ORG_PLANS, labelOf } from "@/lib/constants";
-import { formatMoney, formatDate, pct } from "@/lib/utils";
+import { formatMoney, pct } from "@/lib/utils";
 
 const PLAN_LIMITS: Record<string, { events: number; attendees: number; members: number; features: string[] }> = {
   STARTER: { events: 3, attendees: 500, members: 3, features: ["Up to 3 events", "500 attendees", "Core matchmaking", "Email support"] },

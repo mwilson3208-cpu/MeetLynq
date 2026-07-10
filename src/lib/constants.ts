@@ -3,14 +3,6 @@
 
 export type Tone = "neutral" | "primary" | "success" | "warning" | "destructive" | "info";
 
-export const USER_ROLES = {
-  PLATFORM_ADMIN: "Platform admin",
-  ORGANIZER: "Organizer",
-  TEAM_MEMBER: "Team member",
-  STAFF: "Check-in staff",
-  ATTENDEE: "Attendee",
-} as const;
-
 export const ORG_PLANS = {
   STARTER: "Starter",
   GROWTH: "Growth",

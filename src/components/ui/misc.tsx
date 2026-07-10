@@ -1,5 +1,4 @@
 import * as React from "react";
-import Link from "next/link";
 import { cn, initials } from "@/lib/utils";
 
 export function Avatar({
@@ -130,37 +129,6 @@ export function PageHeader({
         {description && <p className="mt-1 text-sm text-muted-foreground">{description}</p>}
       </div>
       {action && <div className="flex shrink-0 items-center gap-2">{action}</div>}
-    </div>
-  );
-}
-
-/** Horizontal tab navigation backed by links (server-friendly). */
-export function TabNav({
-  tabs,
-  active,
-}: {
-  tabs: { href: string; label: string }[];
-  active: string;
-}) {
-  return (
-    <div className="mb-6 flex gap-1 overflow-x-auto border-b">
-      {tabs.map((t) => {
-        const isActive = active === t.href;
-        return (
-          <Link
-            key={t.href}
-            href={t.href}
-            className={cn(
-              "whitespace-nowrap border-b-2 px-3 py-2.5 text-sm font-medium transition-colors",
-              isActive
-                ? "border-primary text-primary"
-                : "border-transparent text-muted-foreground hover:text-foreground"
-            )}
-          >
-            {t.label}
-          </Link>
-        );
-      })}
     </div>
   );
 }

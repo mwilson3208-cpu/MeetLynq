@@ -15,7 +15,7 @@ const SESSION_FORMATS = ["TALK", "PANEL", "WORKSHOP", "BREAKOUT", "KEYNOTE"];
 
 export default async function AgendaPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const event = await getEventOr404(id);
+  await getEventOr404(id); // authorize: 404s if the current org doesn't own this event
 
   const [sessions, tracks, speakers] = await Promise.all([
     db.session.findMany({

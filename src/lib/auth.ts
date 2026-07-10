@@ -69,9 +69,3 @@ export async function getCurrentUser() {
   });
   return user;
 }
-
-export async function getCurrentOrg() {
-  const user = await getCurrentUser();
-  if (!user) return null;
-  return user.memberships[0]?.organization ?? null;
-}

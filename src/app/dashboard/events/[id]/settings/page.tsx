@@ -1,7 +1,6 @@
 import { Rocket, Settings, TriangleAlert } from "lucide-react";
 import { getEventOr404 } from "@/lib/queries";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { DeleteButton } from "@/components/ui/delete-button";
 import { EVENT_STATUS } from "@/lib/constants";
