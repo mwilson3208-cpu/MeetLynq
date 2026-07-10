@@ -5,7 +5,9 @@ import {
   UserX,
   Clock,
   MapPin,
-  Plus,
+  Check,
+  X,
+  Trash2,
 } from "lucide-react";
 import { db } from "@/lib/db";
 import { getEventOr404 } from "@/lib/queries";
@@ -27,8 +29,79 @@ import {
   updateMeetingLocation,
   deleteMeetingLocation,
 } from "../manage-actions";
+import { setMeetingStatus, scheduleMeeting, deleteMeeting } from "./meeting-actions";
 
 const STATUS_FILTERS = ["All", "Requested", "Approved", "Completed", "No-show", "Canceled"];
+
+/** One-click meeting status transition. */
+function MeetingStatusButton({
+  eventId,
+  id,
+  status,
+  variant,
+  children,
+}: {
+  eventId: string;
+  id: string;
+  status: string;
+  variant: "success" | "outline" | "ghost";
+  children: React.ReactNode;
+}) {
+  return (
+    <form action={setMeetingStatus}>
+      <input type="hidden" name="eventId" value={eventId} />
+      <input type="hidden" name="id" value={id} />
+      <input type="hidden" name="status" value={status} />
+      <Button type="submit" size="sm" variant={variant}>
+        {children}
+      </Button>
+    </form>
+  );
+}
+
+/** Contextual actions for a meeting based on its current status. */
+function MeetingActions({ eventId, id, status }: { eventId: string; id: string; status: string }) {
+  const pending = status === "REQUESTED" || status === "RESCHEDULE";
+  return (
+    <div className="flex flex-wrap items-center justify-end gap-1.5">
+      {pending && (
+        <>
+          <MeetingStatusButton eventId={eventId} id={id} status="APPROVED" variant="success">
+            <Check className="size-4" /> Approve
+          </MeetingStatusButton>
+          <MeetingStatusButton eventId={eventId} id={id} status="DECLINED" variant="ghost">
+            <X className="size-4" /> Decline
+          </MeetingStatusButton>
+        </>
+      )}
+      {status === "APPROVED" && (
+        <>
+          <MeetingStatusButton eventId={eventId} id={id} status="COMPLETED" variant="success">
+            <Check className="size-4" /> Complete
+          </MeetingStatusButton>
+          <MeetingStatusButton eventId={eventId} id={id} status="NO_SHOW" variant="outline">
+            No-show
+          </MeetingStatusButton>
+          <MeetingStatusButton eventId={eventId} id={id} status="CANCELED" variant="ghost">
+            Cancel
+          </MeetingStatusButton>
+        </>
+      )}
+      <form action={deleteMeeting}>
+        <input type="hidden" name="eventId" value={eventId} />
+        <input type="hidden" name="id" value={id} />
+        <button
+          type="submit"
+          aria-label="Delete meeting"
+          title="Delete meeting"
+          className="flex size-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive [&_svg]:size-4"
+        >
+          <Trash2 />
+        </button>
+      </form>
+    </div>
+  );
+}
 
 export default async function MeetingsPage({
   params,
@@ -56,6 +129,74 @@ export default async function MeetingsPage({
   const locations = await db.meetingLocation.findMany({
     where: { eventId: id },
   });
+
+  const participants = await db.participant.findMany({
+    where: { eventId: id },
+    orderBy: { name: "asc" },
+    select: { id: true, name: true, companyName: true },
+  });
+
+  const participantOptions = (name: string) => (
+    <Select name={name} defaultValue="" required>
+      <option value="" disabled>
+        Choose a participant
+      </option>
+      {participants.map((p) => (
+        <option key={p.id} value={p.id}>
+          {p.name}
+          {p.companyName ? ` · ${p.companyName}` : ""}
+        </option>
+      ))}
+    </Select>
+  );
+
+  const scheduleDialog = (
+    <FormDialog
+      buttonLabel="Schedule meeting"
+      title="Schedule a meeting"
+      description="Book a 1:1 between two participants."
+      action={scheduleMeeting}
+      submitLabel="Schedule meeting"
+      buttonSize="sm"
+    >
+      <input type="hidden" name="eventId" value={id} />
+      <Field label="Participant A">{participantOptions("participantAId")}</Field>
+      <Field label="Participant B">{participantOptions("participantBId")}</Field>
+      <div className="grid gap-4 sm:grid-cols-2">
+        <Field label="Slot">
+          <Select name="slotId" defaultValue="">
+            <option value="">Unscheduled</option>
+            {slots.map((s) => (
+              <option key={s.id} value={s.id}>
+                {s.label ?? "Slot"} · {formatTime(s.startsAt)}
+              </option>
+            ))}
+          </Select>
+        </Field>
+        <Field label="Location">
+          <Select name="locationId" defaultValue="">
+            <option value="">No location</option>
+            {locations.map((l) => (
+              <option key={l.id} value={l.id}>
+                {l.name}
+              </option>
+            ))}
+          </Select>
+        </Field>
+      </div>
+      <div className="grid gap-4 sm:grid-cols-2">
+        <Field label="Mode">
+          <Select name="mode" defaultValue="IN_PERSON">
+            <option value="IN_PERSON">In-person</option>
+            <option value="ONLINE">Online</option>
+          </Select>
+        </Field>
+        <Field label="Goal">
+          <Input name="goal" placeholder="Explore partnership" />
+        </Field>
+      </div>
+    </FormDialog>
+  );
 
   const total = meetings.length;
   const approved = meetings.filter((m) => m.status === "APPROVED").length;
@@ -149,9 +290,7 @@ export default async function MeetingsPage({
             Book and track 1:1 and group meetings across slots and locations.
           </p>
         </div>
-        <Button>
-          <Plus /> Schedule meeting
-        </Button>
+        {scheduleDialog}
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -194,11 +333,7 @@ export default async function MeetingsPage({
                   icon={<CalendarClock />}
                   title="No meetings yet"
                   description="Schedule your first meeting to start building the agenda."
-                  action={
-                    <Button>
-                      <Plus /> Schedule meeting
-                    </Button>
-                  }
+                  action={scheduleDialog}
                 />
               </div>
             ) : (
@@ -211,6 +346,7 @@ export default async function MeetingsPage({
                     <TH>Type</TH>
                     <TH>Mode</TH>
                     <TH>Status</TH>
+                    <TH className="text-right">Actions</TH>
                   </TR>
                 </THead>
                 <TBody>
@@ -233,6 +369,9 @@ export default async function MeetingsPage({
                         </TD>
                         <TD>
                           <Badge tone={meta.tone}>{meta.label}</Badge>
+                        </TD>
+                        <TD>
+                          <MeetingActions eventId={id} id={m.id} status={m.status} />
                         </TD>
                       </TR>
                     );
