@@ -55,8 +55,12 @@ export async function uploadImage(file: File, prefix: string): Promise<UploadRes
     return { ok: false, error: "File is too large (max 5 MB)." };
   }
 
-  const ext = file.name.includes(".") ? file.name.split(".").pop() : "png";
-  const safePrefix = prefix.replace(/[^a-zA-Z0-9/_-]/g, "");
+  // Derive the extension from the (untrusted) filename, then hard-restrict it
+  // to a short alphanumeric token so it can't smuggle path separators or other
+  // characters into the object key.
+  const rawExt = file.name.includes(".") ? file.name.split(".").pop() ?? "" : "";
+  const ext = /^[a-zA-Z0-9]{1,8}$/.test(rawExt) ? rawExt.toLowerCase() : "png";
+  const safePrefix = prefix.replace(/[^a-zA-Z0-9/_-]/g, "").replace(/\.+/g, "");
   const path = `${safePrefix}-${Date.now()}.${ext}`;
   const bytes = new Uint8Array(await file.arrayBuffer());
 

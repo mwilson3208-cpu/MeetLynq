@@ -6,8 +6,27 @@ import { db } from "./db";
 // service. Passwords use scrypt; the session cookie is an HMAC-signed user id.
 // Swap for NextAuth/Supabase Auth in production without changing call sites.
 
-const SECRET = process.env.AUTH_SECRET ?? "dev-meetlynq-secret-change-me";
+const DEV_FALLBACK_SECRET = "dev-meetlynq-secret-change-me";
 const COOKIE = "meetlynq_session";
+
+/**
+ * Resolve the session-signing secret. In production we refuse to fall back to
+ * the well-known default: signing cookies with a public constant would let
+ * anyone forge a session for any user. Fail closed instead. Evaluated lazily
+ * (not at module load) so the build and public pages aren't affected, only
+ * actual auth operations.
+ */
+function secret(): string {
+  const s = process.env.AUTH_SECRET;
+  if (s && s !== DEV_FALLBACK_SECRET) return s;
+  if (process.env.NODE_ENV === "production") {
+    throw new Error(
+      "AUTH_SECRET is not configured. Set a strong AUTH_SECRET (e.g. `openssl rand -base64 32`) — " +
+        "refusing to sign or verify sessions with the default secret."
+    );
+  }
+  return DEV_FALLBACK_SECRET; // development / test only
+}
 
 export function hashPassword(password: string) {
   const salt = randomBytes(16).toString("hex");
@@ -24,7 +43,7 @@ export function verifyPassword(password: string, stored: string) {
 }
 
 function sign(value: string) {
-  const mac = createHmac("sha256", SECRET).update(value).digest("hex");
+  const mac = createHmac("sha256", secret()).update(value).digest("hex");
   return `${value}.${mac}`;
 }
 
@@ -34,7 +53,7 @@ function unsign(signed: string | undefined): string | null {
   if (idx < 0) return null;
   const value = signed.slice(0, idx);
   const mac = signed.slice(idx + 1);
-  const expected = createHmac("sha256", SECRET).update(value).digest("hex");
+  const expected = createHmac("sha256", secret()).update(value).digest("hex");
   try {
     if (timingSafeEqual(Buffer.from(mac), Buffer.from(expected))) return value;
   } catch {
