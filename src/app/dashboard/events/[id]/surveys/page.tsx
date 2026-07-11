@@ -67,36 +67,48 @@ export default async function SurveysPage({ params }: { params: Promise<{ id: st
     orderBy: { createdAt: "desc" },
   });
 
-  // Compute avg rating + NPS per survey from its responses.
+  // Compute avg rating + NPS per survey. One query fetches every relevant
+  // response for the whole event (avoids an N+1 of one query per survey), then
+  // we bucket the numbers per survey in memory.
+  const questionKind = new Map<string, "RATING" | "NPS">();
+  for (const survey of surveys) {
+    for (const q of survey.questions) {
+      if (q.type === "RATING" || q.type === "NPS") questionKind.set(q.id, q.type);
+    }
+  }
+
+  // surveyId -> { rating: number[], nps: number[] }
+  const buckets = new Map<string, { rating: number[]; nps: number[] }>();
+  for (const survey of surveys) buckets.set(survey.id, { rating: [], nps: [] });
+
+  if (questionKind.size > 0) {
+    const responses = await db.surveyResponse.findMany({
+      where: { surveyId: { in: surveys.map((s) => s.id) }, questionId: { in: [...questionKind.keys()] } },
+      select: { surveyId: true, questionId: true, value: true },
+    });
+    for (const r of responses) {
+      const n = Number(r.value);
+      if (!Number.isFinite(n)) continue;
+      const kind = questionKind.get(r.questionId);
+      const b = buckets.get(r.surveyId);
+      if (!b || !kind) continue;
+      if (kind === "RATING") b.rating.push(n);
+      else b.nps.push(n);
+    }
+  }
+
   const stats = new Map<string, { avg: number | null; nps: number | null; npsCount: number }>();
   for (const survey of surveys) {
-    const ratingIds = survey.questions.filter((q) => q.type === "RATING").map((q) => q.id);
-    const npsIds = survey.questions.filter((q) => q.type === "NPS").map((q) => q.id);
-
-    const wanted = [...ratingIds, ...npsIds];
-    const responses = wanted.length
-      ? await db.surveyResponse.findMany({ where: { surveyId: survey.id, questionId: { in: wanted } } })
-      : [];
-
-    const ratingNums = responses
-      .filter((r) => ratingIds.includes(r.questionId))
-      .map((r) => Number(r.value))
-      .filter((n) => Number.isFinite(n));
+    const { rating: ratingNums, nps: npsNums } = buckets.get(survey.id)!;
     const avg = ratingNums.length
       ? Math.round((ratingNums.reduce((a, b) => a + b, 0) / ratingNums.length) * 10) / 10
       : null;
-
-    const npsNums = responses
-      .filter((r) => npsIds.includes(r.questionId))
-      .map((r) => Number(r.value))
-      .filter((n) => Number.isFinite(n));
     let nps: number | null = null;
     if (npsNums.length) {
       const promoters = npsNums.filter((n) => n >= 9).length;
       const detractors = npsNums.filter((n) => n <= 6).length;
       nps = Math.round(((promoters - detractors) / npsNums.length) * 100);
     }
-
     stats.set(survey.id, { avg, nps, npsCount: npsNums.length });
   }
 

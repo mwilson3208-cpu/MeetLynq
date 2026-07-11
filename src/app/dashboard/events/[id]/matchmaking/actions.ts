@@ -43,7 +43,10 @@ export async function runMatchmaking(fd: FormData): Promise<void> {
 
   await db.matchScore.deleteMany({ where: { eventId: event.id, overridden: false } });
 
-  const ops = [];
+  // Build all rows in memory, then insert in a single createMany instead of
+  // one INSERT per pair inside a transaction (far fewer round trips for the
+  // O(n²) pairing — up to ~45k candidate pairs at the 300-participant cap).
+  const rows = [];
   for (let i = 0; i < participants.length; i++) {
     for (let j = i + 1; j < participants.length; j++) {
       let a = participants[i];
@@ -52,24 +55,20 @@ export async function runMatchmaking(fd: FormData): Promise<void> {
       if (keep.has(pairKey(a.id, b.id))) continue;
       const r = scorePair(a, b);
       if (r.score < minScore) continue;
-      ops.push(
-        db.matchScore.create({
-          data: {
-            eventId: event.id,
-            participantAId: a.id,
-            participantBId: b.id,
-            score: r.score,
-            reason: r.reason,
-            mutualInterests: JSON.stringify(r.mutualInterests),
-            fitType: r.fitType,
-            suggestedMessage: r.suggestedMessage,
-            suggestedGoal: r.suggestedGoal,
-          },
-        })
-      );
+      rows.push({
+        eventId: event.id,
+        participantAId: a.id,
+        participantBId: b.id,
+        score: r.score,
+        reason: r.reason,
+        mutualInterests: JSON.stringify(r.mutualInterests),
+        fitType: r.fitType,
+        suggestedMessage: r.suggestedMessage,
+        suggestedGoal: r.suggestedGoal,
+      });
     }
   }
-  if (ops.length) await db.$transaction(ops);
+  if (rows.length) await db.matchScore.createMany({ data: rows });
   revalidate(event.id);
 }
 
