@@ -30,7 +30,10 @@ export async function createEvent(_prev: unknown, formData: FormData) {
   const formatRaw = String(formData.get("format") ?? "");
   const format = formatRaw in EVENT_FORMATS ? formatRaw : "IN_PERSON";
   const tagline = String(formData.get("tagline") ?? "").trim().slice(0, MAX_TAGLINE) || null;
+  const venueName = String(formData.get("venueName") ?? "").trim().slice(0, MAX_NAME) || null;
+  const venueAddress = String(formData.get("venueAddress") ?? "").trim().slice(0, MAX_TAGLINE) || null;
   const city = String(formData.get("city") ?? "").trim().slice(0, MAX_NAME) || null;
+  const country = String(formData.get("country") ?? "").trim().slice(0, MAX_NAME) || null;
   const startsAt = optDate(String(formData.get("startsAt") ?? ""));
   const useAi = formData.get("useAi") === "on";
 
@@ -52,7 +55,10 @@ export async function createEvent(_prev: unknown, formData: FormData) {
       description,
       type,
       format,
+      venueName,
+      venueAddress,
       city,
+      country,
       brandColor: org.brandColor,
       startsAt,
       status: "DRAFT",

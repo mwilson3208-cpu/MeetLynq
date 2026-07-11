@@ -46,9 +46,18 @@ export function CreateEventForm({
           </Select>
         </Field>
       </div>
-      <div className="grid gap-5 sm:grid-cols-2">
+      <Field label="Venue name" hint="Where the event takes place. Leave blank for virtual events.">
+        <Input name="venueName" placeholder="Austin Convention Center" />
+      </Field>
+      <Field label="Address">
+        <Input name="venueAddress" placeholder="500 E Cesar Chavez St" />
+      </Field>
+      <div className="grid gap-5 sm:grid-cols-3">
         <Field label="City">
-          <Input name="city" placeholder="Austin, USA" />
+          <Input name="city" placeholder="Austin" />
+        </Field>
+        <Field label="Country">
+          <Input name="country" placeholder="USA" />
         </Field>
         <Field label="Start date">
           <Input name="startsAt" type="date" />
