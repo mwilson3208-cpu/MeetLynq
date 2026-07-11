@@ -5,17 +5,33 @@ import { db } from "@/lib/db";
 import { requireOrg } from "@/lib/queries";
 import { slugify } from "@/lib/utils";
 import { generate } from "@/lib/ai";
+import { EVENT_TYPES, EVENT_FORMATS } from "@/lib/constants";
+
+// Keep free-text inputs within sane bounds so a crafted/oversized POST can't
+// bloat the row or the rendered page. The DB columns are unbounded text.
+const MAX_NAME = 200;
+const MAX_TAGLINE = 300;
+
+/** Parse a date input, returning null for empty or invalid values. */
+function optDate(v: string): Date | null {
+  if (!v) return null;
+  const d = new Date(v);
+  return Number.isNaN(d.getTime()) ? null : d;
+}
 
 export async function createEvent(_prev: unknown, formData: FormData) {
   const { org, user } = await requireOrg();
-  const name = String(formData.get("name") ?? "").trim();
+  const name = String(formData.get("name") ?? "").trim().slice(0, MAX_NAME);
   if (!name) return { error: "Please give your event a name." };
 
-  const type = String(formData.get("type") ?? "CONFERENCE");
-  const format = String(formData.get("format") ?? "IN_PERSON");
-  const tagline = String(formData.get("tagline") ?? "").trim() || null;
-  const city = String(formData.get("city") ?? "").trim() || null;
-  const startsAtRaw = String(formData.get("startsAt") ?? "");
+  // Only accept known enum values; fall back to the default for anything else.
+  const typeRaw = String(formData.get("type") ?? "");
+  const type = typeRaw in EVENT_TYPES ? typeRaw : "CONFERENCE";
+  const formatRaw = String(formData.get("format") ?? "");
+  const format = formatRaw in EVENT_FORMATS ? formatRaw : "IN_PERSON";
+  const tagline = String(formData.get("tagline") ?? "").trim().slice(0, MAX_TAGLINE) || null;
+  const city = String(formData.get("city") ?? "").trim().slice(0, MAX_NAME) || null;
+  const startsAt = optDate(String(formData.get("startsAt") ?? ""));
   const useAi = formData.get("useAi") === "on";
 
   let slug = slugify(name) || "event";
@@ -38,7 +54,7 @@ export async function createEvent(_prev: unknown, formData: FormData) {
       format,
       city,
       brandColor: org.brandColor,
-      startsAt: startsAtRaw ? new Date(startsAtRaw) : null,
+      startsAt,
       status: "DRAFT",
       pages: {
         create: { key: "home", title: "Home", isHome: true, published: false, navOrder: 0 },

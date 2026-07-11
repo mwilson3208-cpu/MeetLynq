@@ -29,17 +29,35 @@ export async function POST(req: Request) {
   }
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  let body: { task?: string; input?: Record<string, string> };
+  let body: unknown;
   try {
     body = await req.json();
   } catch {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
+  // JSON.parse("null"), a bare array, string, or number are all valid JSON but
+  // not the object we need — reject them instead of dereferencing.
+  if (typeof body !== "object" || body === null || Array.isArray(body)) {
+    return NextResponse.json({ error: "Request body must be a JSON object." }, { status: 400 });
+  }
 
-  if (!body.task || !VALID_TASKS.includes(body.task as AiTask)) {
+  const { task, input } = body as { task?: unknown; input?: unknown };
+  if (typeof task !== "string" || !VALID_TASKS.includes(task as AiTask)) {
     return NextResponse.json({ error: "Unknown AI task" }, { status: 400 });
   }
 
-  const result = await generate(body.task as AiTask, body.input ?? {});
+  // Coerce input to a flat string map so the generator never sees objects,
+  // arrays, or non-string values (which would stringify to "[object Object]").
+  const safeInput: Record<string, string> = {};
+  if (typeof input === "object" && input !== null && !Array.isArray(input)) {
+    for (const [k, v] of Object.entries(input as Record<string, unknown>)) {
+      if (v == null) continue;
+      if (typeof v === "string" || typeof v === "number" || typeof v === "boolean") {
+        safeInput[k] = String(v).slice(0, 2000);
+      }
+    }
+  }
+
+  const result = await generate(task as AiTask, safeInput);
   return NextResponse.json({ ...result, reviewable: true });
 }

@@ -12,15 +12,23 @@ import { createCheckout, appUrl } from "@/lib/stripe";
 
 export type RegisterState = { error?: string; success?: string } | null;
 
+// Basic email sanity — this is a public endpoint, so don't trust the browser's
+// type="email" guard (a direct POST bypasses it). Not a full RFC validator; it
+// catches obvious junk without rejecting legitimate addresses.
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const MAX_NAME = 100;
+const MAX_EMAIL = 254;
+
 export async function registerForEvent(_prev: RegisterState, formData: FormData): Promise<RegisterState> {
   const slug = String(formData.get("slug") ?? "");
   const ticketId = String(formData.get("ticketId") ?? "");
-  const firstName = String(formData.get("firstName") ?? "").trim();
-  const lastName = String(formData.get("lastName") ?? "").trim();
-  const email = String(formData.get("email") ?? "").trim().toLowerCase();
-  const couponCode = String(formData.get("coupon") ?? "").trim() || null;
+  const firstName = String(formData.get("firstName") ?? "").trim().slice(0, MAX_NAME);
+  const lastName = String(formData.get("lastName") ?? "").trim().slice(0, MAX_NAME);
+  const email = String(formData.get("email") ?? "").trim().toLowerCase().slice(0, MAX_EMAIL);
+  const couponCode = String(formData.get("coupon") ?? "").trim().slice(0, 64) || null;
 
   if (!firstName || !lastName || !email) return { error: "Please fill in your name and email." };
+  if (!EMAIL_RE.test(email)) return { error: "Please enter a valid email address." };
   if (!ticketId) return { error: "Please choose a ticket." };
 
   const event = await db.event.findUnique({ where: { slug } });

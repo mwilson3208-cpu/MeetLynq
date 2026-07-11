@@ -30,14 +30,23 @@ export async function demoLogin() {
   redirect("/dashboard");
 }
 
+// Public endpoint — validate/bound inputs server-side, not just in the browser.
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 export async function signup(_prev: unknown, formData: FormData) {
-  const name = String(formData.get("name") ?? "").trim();
-  const email = String(formData.get("email") ?? "").toLowerCase().trim();
+  const name = String(formData.get("name") ?? "").trim().slice(0, 100);
+  const email = String(formData.get("email") ?? "").toLowerCase().trim().slice(0, 254);
   const password = String(formData.get("password") ?? "");
-  const orgName = String(formData.get("organization") ?? "").trim() || `${name}'s workspace`;
+  const orgName = String(formData.get("organization") ?? "").trim().slice(0, 120) || `${name}'s workspace`;
 
   if (!name || !email || password.length < 6) {
     return { error: "Please provide a name, email, and a password of at least 6 characters." };
+  }
+  if (!EMAIL_RE.test(email)) {
+    return { error: "Please enter a valid email address." };
+  }
+  if (password.length > 200) {
+    return { error: "That password is too long — please use fewer than 200 characters." };
   }
   try {
     const existing = await db.user.findUnique({ where: { email } });
