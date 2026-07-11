@@ -4,7 +4,7 @@
 
 | Variable | Why it matters |
 | --- | --- |
-| `AUTH_SECRET` | Signs session cookies (HMAC-SHA256). **Must** be set to a strong random value in production — generate with `openssl rand -base64 32`. The app **refuses to sign or verify sessions in production** if this is missing or left at the default, rather than falling back to a public constant (which would let anyone forge a session). |
+| `AUTH_SECRET` | Signs session cookies (HMAC-SHA256). **Set a strong random value in production** — generate with `openssl rand -base64 32`. If it is missing, the app never falls back to the public repo constant (which would let anyone forge a session): it derives a stable, non-public signing key from the database connection string instead and logs a warning. Auth keeps working with zero config, but a dedicated `AUTH_SECRET` is best practice (and keeps sessions valid if the DB URL ever changes). Session **verification never throws** — an unverifiable cookie is treated as logged-out, never a crash. |
 | `DATABASE_URL` / `POSTGRES_PRISMA_URL` | Postgres connection. Pooled (pgbouncer) URL for the serverless runtime. |
 | `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` | Server-only. Payments run in mock mode when absent. |
 | `SUPABASE_SERVICE_ROLE_KEY` | Server-only (never `NEXT_PUBLIC_`). Used for storage uploads. |

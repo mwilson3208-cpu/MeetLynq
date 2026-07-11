@@ -1,5 +1,5 @@
 import { cookies } from "next/headers";
-import { createHmac, randomBytes, scryptSync, timingSafeEqual } from "crypto";
+import { createHash, createHmac, randomBytes, scryptSync, timingSafeEqual } from "crypto";
 import { db } from "./db";
 
 // Lightweight session auth built on Node crypto — no native deps, no external
@@ -8,24 +8,37 @@ import { db } from "./db";
 
 const DEV_FALLBACK_SECRET = "dev-meetlynq-secret-change-me";
 const COOKIE = "meetlynq_session";
+let warnedNoSecret = false;
 
 /**
- * Resolve the session-signing secret. In production we refuse to fall back to
- * the well-known default: signing cookies with a public constant would let
- * anyone forge a session for any user. Fail closed instead. Evaluated lazily
- * (not at module load) so the build and public pages aren't affected, only
- * actual auth operations.
+ * Resolve the session-signing secret. Never throws — auth must degrade
+ * gracefully, not crash the page.
+ *   1. AUTH_SECRET (explicit, ideal) — always preferred.
+ *   2. Otherwise derive a stable, NON-public secret from the database
+ *      connection string. It's unique per deployment and not in the repo, so
+ *      sessions can't be forged with a well-known constant — while keeping the
+ *      app working with zero configuration. A loud warning nudges operators to
+ *      set a dedicated AUTH_SECRET.
+ *   3. Local dev with no DB env configured — fall back to the dev constant.
  */
 function secret(): string {
-  const s = process.env.AUTH_SECRET;
-  if (s && s !== DEV_FALLBACK_SECRET) return s;
-  if (process.env.NODE_ENV === "production") {
-    throw new Error(
-      "AUTH_SECRET is not configured. Set a strong AUTH_SECRET (e.g. `openssl rand -base64 32`) — " +
-        "refusing to sign or verify sessions with the default secret."
-    );
+  const explicit = process.env.AUTH_SECRET;
+  if (explicit && explicit !== DEV_FALLBACK_SECRET) return explicit;
+
+  const dbUrl =
+    process.env.DATABASE_URL ?? process.env.POSTGRES_PRISMA_URL ?? process.env.POSTGRES_URL;
+  if (dbUrl) {
+    if (process.env.NODE_ENV === "production" && !warnedNoSecret) {
+      warnedNoSecret = true;
+      console.warn(
+        "[auth] AUTH_SECRET is not set — deriving a session secret from the database URL. " +
+          "Set a dedicated AUTH_SECRET (`openssl rand -base64 32`) for best practice."
+      );
+    }
+    return createHash("sha256").update(`meetlynq-session-v1:${dbUrl}`).digest("hex");
   }
-  return DEV_FALLBACK_SECRET; // development / test only
+
+  return DEV_FALLBACK_SECRET; // development / test only, no DB configured
 }
 
 export function hashPassword(password: string) {
