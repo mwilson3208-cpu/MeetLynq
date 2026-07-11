@@ -52,15 +52,28 @@ export function CreateEventForm({
       <Field label="Address">
         <Input name="venueAddress" placeholder="500 E Cesar Chavez St" />
       </Field>
-      <div className="grid gap-5 sm:grid-cols-3">
+      <div className="grid gap-5 sm:grid-cols-2">
         <Field label="City">
           <Input name="city" placeholder="Austin" />
         </Field>
         <Field label="Country">
           <Input name="country" placeholder="USA" />
         </Field>
+      </div>
+      <div className="grid gap-5 sm:grid-cols-2">
         <Field label="Start date">
-          <Input name="startsAt" type="date" />
+          <Input name="startDate" type="date" />
+        </Field>
+        <Field label="Start time">
+          <Input name="startTime" type="time" />
+        </Field>
+      </div>
+      <div className="grid gap-5 sm:grid-cols-2">
+        <Field label="End date" hint="Leave blank for a single-day event.">
+          <Input name="endDate" type="date" />
+        </Field>
+        <Field label="End time">
+          <Input name="endTime" type="time" />
         </Field>
       </div>
       <label className="flex items-start gap-3 rounded-lg border p-3">

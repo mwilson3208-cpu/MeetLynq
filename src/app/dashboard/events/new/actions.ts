@@ -12,10 +12,15 @@ import { EVENT_TYPES, EVENT_FORMATS } from "@/lib/constants";
 const MAX_NAME = 200;
 const MAX_TAGLINE = 300;
 
-/** Parse a date input, returning null for empty or invalid values. */
-function optDate(v: string): Date | null {
-  if (!v) return null;
-  const d = new Date(v);
+/**
+ * Combine a date input (YYYY-MM-DD) with an optional time input (HH:MM) into a
+ * Date. Returns null when the date is empty or the combined value is invalid.
+ * A missing time defaults to midnight.
+ */
+function optDateTime(date: string, time: string): Date | null {
+  if (!date) return null;
+  const t = /^\d{2}:\d{2}$/.test(time) ? time : "00:00";
+  const d = new Date(`${date}T${t}`);
   return Number.isNaN(d.getTime()) ? null : d;
 }
 
@@ -34,7 +39,17 @@ export async function createEvent(_prev: unknown, formData: FormData) {
   const venueAddress = String(formData.get("venueAddress") ?? "").trim().slice(0, MAX_TAGLINE) || null;
   const city = String(formData.get("city") ?? "").trim().slice(0, MAX_NAME) || null;
   const country = String(formData.get("country") ?? "").trim().slice(0, MAX_NAME) || null;
-  const startsAt = optDate(String(formData.get("startsAt") ?? ""));
+  const startsAt = optDateTime(
+    String(formData.get("startDate") ?? ""),
+    String(formData.get("startTime") ?? ""),
+  );
+  let endsAt = optDateTime(
+    String(formData.get("endDate") ?? ""),
+    String(formData.get("endTime") ?? ""),
+  );
+  // An end before the start is almost certainly a mistake; drop it rather than
+  // persist a negative-length event.
+  if (startsAt && endsAt && endsAt < startsAt) endsAt = null;
   const useAi = formData.get("useAi") === "on";
 
   let slug = slugify(name) || "event";
@@ -61,6 +76,7 @@ export async function createEvent(_prev: unknown, formData: FormData) {
       country,
       brandColor: org.brandColor,
       startsAt,
+      endsAt,
       status: "DRAFT",
       pages: {
         create: { key: "home", title: "Home", isHome: true, published: false, navOrder: 0 },
