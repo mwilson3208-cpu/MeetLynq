@@ -83,7 +83,10 @@ export async function registerFree(args: {
     await ensureParticipant(reg.id, args.eventId, `${args.firstName} ${args.lastName}`, args.email);
   }
   const tpl = EMAIL_TEMPLATES.registrationConfirmation(args.firstName, args.eventName);
-  await sendEmail({ to: args.email, subject: tpl.subject, text: tpl.text });
+  // Email delivery must never fail a registration — log and move on.
+  await sendEmail({ to: args.email, subject: tpl.subject, text: tpl.text }).catch((err) =>
+    console.error("[registerFree:email]", err)
+  );
   return reg.id;
 }
 
@@ -166,7 +169,10 @@ export async function finalizeOrder(orderId: string, providerRef = "mock"): Prom
     }
     await ensureParticipant(reg.id, order.eventId, `${reg.firstName} ${reg.lastName}`, reg.email);
     const tpl = EMAIL_TEMPLATES.registrationConfirmation(reg.firstName, order.event.name);
-    await sendEmail({ to: reg.email, subject: tpl.subject, text: tpl.text });
+    // A paid order must finalize even if the confirmation email fails.
+    await sendEmail({ to: reg.email, subject: tpl.subject, text: tpl.text }).catch((err) =>
+      console.error("[finalizeOrder:email]", err)
+    );
   }
   return true;
 }

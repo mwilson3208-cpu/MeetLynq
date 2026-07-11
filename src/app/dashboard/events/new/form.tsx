@@ -4,6 +4,7 @@ import { useActionState } from "react";
 import { useFormStatus } from "react-dom";
 import { Button } from "@/components/ui/button";
 import { Input, Textarea, Select, Field } from "@/components/ui/input";
+import { withActionErrorFallback } from "@/components/ui/safe-action";
 import { EVENT_TYPES, EVENT_FORMATS } from "@/lib/constants";
 
 function Submit() {
@@ -20,7 +21,7 @@ export function CreateEventForm({
 }: {
   action: (prev: unknown, fd: FormData) => Promise<{ error?: string } | void>;
 }) {
-  const [state, formAction] = useActionState(action, null);
+  const [state, formAction] = useActionState(withActionErrorFallback(action), null);
   return (
     <form action={formAction} className="space-y-5">
       <Field label="Event name">

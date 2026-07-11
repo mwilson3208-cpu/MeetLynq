@@ -6,8 +6,31 @@ import { parseJson } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
+/** Rethrow Next.js control-flow "errors" (redirect/notFound) so they keep working. */
+function isNextControlFlow(err: unknown): boolean {
+  return (
+    typeof err === "object" &&
+    err !== null &&
+    "digest" in err &&
+    String((err as { digest: unknown }).digest).startsWith("NEXT_")
+  );
+}
+
 // Authorized CSV export for an event's list data. ?type= selects the dataset.
 export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
+  try {
+    return await handleExport(req, params);
+  } catch (err) {
+    if (isNextControlFlow(err)) throw err; // preserve the 404 from getEventOr404
+    console.error("[export]", err);
+    return NextResponse.json(
+      { error: "Export failed. Please try again in a moment." },
+      { status: 500 }
+    );
+  }
+}
+
+async function handleExport(req: Request, params: Promise<{ id: string }>) {
   const { id } = await params;
   const event = await getEventOr404(id); // 404s if the current user's org doesn't own it
   const type = new URL(req.url).searchParams.get("type") ?? "attendees";

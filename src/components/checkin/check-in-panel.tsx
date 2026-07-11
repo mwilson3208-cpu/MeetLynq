@@ -5,6 +5,7 @@ import { useFormStatus } from "react-dom";
 import { UserCheck, Search, CheckCircle2, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { withActionErrorFallback } from "@/components/ui/safe-action";
 import type { CheckInState } from "@/app/dashboard/events/[id]/check-in/actions";
 
 function SubmitButton() {
@@ -23,7 +24,7 @@ export function CheckInPanel({
   action: (prev: CheckInState, fd: FormData) => Promise<CheckInState>;
   eventId: string;
 }) {
-  const [state, formAction] = useActionState(action, null);
+  const [state, formAction] = useActionState(withActionErrorFallback(action), null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   // Clear + refocus after each attempt so the next scan/entry is fast.

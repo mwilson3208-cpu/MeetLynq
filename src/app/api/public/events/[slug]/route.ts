@@ -5,6 +5,18 @@ export const dynamic = "force-dynamic";
 
 // Public read API for an event — powers the PWA, embeds, and integrations.
 export async function GET(_req: Request, { params }: { params: Promise<{ slug: string }> }) {
+  try {
+    return await handleGet(params);
+  } catch (err) {
+    console.error("[public-event-api]", err);
+    return NextResponse.json(
+      { error: "The event couldn't be loaded right now. Please try again shortly." },
+      { status: 500 }
+    );
+  }
+}
+
+async function handleGet(params: Promise<{ slug: string }>) {
   const { slug } = await params;
   const event = await db.event.findUnique({
     where: { slug },

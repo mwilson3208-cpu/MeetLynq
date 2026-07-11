@@ -46,7 +46,7 @@ export default async function SurveyRespondPage({
   searchParams,
 }: {
   params: Promise<{ slug: string; surveyId: string }>;
-  searchParams: Promise<{ done?: string; closed?: string }>;
+  searchParams: Promise<{ done?: string; closed?: string; error?: string }>;
 }) {
   const { slug, surveyId } = await params;
   const sp = await searchParams;
@@ -100,6 +100,12 @@ export default async function SurveyRespondPage({
             </div>
           </div>
 
+          {sp.error && (
+            <div className="mb-4 rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
+              We couldn&apos;t save your response just now. Your answers below are cleared — please
+              fill them in and submit again.
+            </div>
+          )}
           {closed ? (
             <div className="rounded-lg border bg-secondary/40 p-6 text-center text-sm text-muted-foreground">
               This survey isn&apos;t accepting responses right now.

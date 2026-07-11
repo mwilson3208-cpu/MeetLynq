@@ -6,6 +6,7 @@ import { useFormStatus } from "react-dom";
 import { Plus, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
+import { withActionErrorFallback } from "@/components/ui/safe-action";
 
 export type MutationState = { ok?: boolean; error?: string } | null;
 type Action = (prev: MutationState, fd: FormData) => Promise<MutationState>;
@@ -44,7 +45,8 @@ export function FormDialog({
   children: React.ReactNode;
 }) {
   const [open, setOpen] = React.useState(false);
-  const [state, formAction] = useActionState(action, null);
+  const safeAction = React.useMemo(() => withActionErrorFallback(action), [action]);
+  const [state, formAction] = useActionState(safeAction, null);
 
   React.useEffect(() => {
     if (state?.ok) setOpen(false);

@@ -4,6 +4,7 @@ import { useActionState } from "react";
 import { useFormStatus } from "react-dom";
 import { Button } from "@/components/ui/button";
 import { Input, Field } from "@/components/ui/input";
+import { withActionErrorFallback } from "@/components/ui/safe-action";
 
 function Submit({ label }: { label: string }) {
   const { pending } = useFormStatus();
@@ -17,7 +18,7 @@ function Submit({ label }: { label: string }) {
 type Action = (prev: unknown, fd: FormData) => Promise<{ error?: string } | void>;
 
 export function LoginForm({ action, demoAction }: { action: Action; demoAction: () => Promise<void> }) {
-  const [state, formAction] = useActionState(action, null);
+  const [state, formAction] = useActionState(withActionErrorFallback(action), null);
   return (
     <div className="space-y-4">
       <form action={formAction} className="space-y-4">
@@ -40,7 +41,7 @@ export function LoginForm({ action, demoAction }: { action: Action; demoAction: 
 }
 
 export function SignupForm({ action }: { action: Action }) {
-  const [state, formAction] = useActionState(action, null);
+  const [state, formAction] = useActionState(withActionErrorFallback(action), null);
   return (
     <form action={formAction} className="space-y-4">
       <Field label="Your name">

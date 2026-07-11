@@ -5,6 +5,7 @@ import { useFormStatus } from "react-dom";
 import { ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input, Select, Field } from "@/components/ui/input";
+import { withActionErrorFallback } from "@/components/ui/safe-action";
 import { formatMoney } from "@/lib/utils";
 import type { RegisterState } from "@/app/e/[slug]/register/actions";
 
@@ -40,7 +41,7 @@ export function RegistrationForm({
   tickets: PublicTicket[];
   action: (prev: RegisterState, fd: FormData) => Promise<RegisterState>;
 }) {
-  const [state, formAction] = useActionState(action, null);
+  const [state, formAction] = useActionState(withActionErrorFallback(action), null);
   const hasPaid = tickets.some((t) => (t.earlyBird && t.earlyBirdPriceCents ? t.earlyBirdPriceCents : t.priceCents) > 0);
 
   if (tickets.length === 0) {

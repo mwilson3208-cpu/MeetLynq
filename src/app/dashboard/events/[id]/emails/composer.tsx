@@ -4,6 +4,7 @@ import { useActionState } from "react";
 import { useFormStatus } from "react-dom";
 import { Button } from "@/components/ui/button";
 import { Field, Input, Textarea, Select } from "@/components/ui/input";
+import { withActionErrorFallback } from "@/components/ui/safe-action";
 import { createCampaign } from "./actions";
 
 const SEGMENTS = [
@@ -23,7 +24,7 @@ function Submit() {
 }
 
 export function Composer({ eventId }: { eventId: string }) {
-  const [state, formAction] = useActionState(createCampaign, null);
+  const [state, formAction] = useActionState(withActionErrorFallback(createCampaign), null);
   return (
     <form action={formAction} className="space-y-4">
       <input type="hidden" name="eventId" value={eventId} />

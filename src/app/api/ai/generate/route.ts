@@ -20,7 +20,13 @@ const VALID_TASKS: AiTask[] = [
 // Controlled AI generation endpoint. Output is always returned for organizer
 // review — it is never auto-published.
 export async function POST(req: Request) {
-  const user = await getCurrentUser();
+  let user;
+  try {
+    user = await getCurrentUser();
+  } catch (err) {
+    console.error("[ai-generate:auth]", err);
+    return NextResponse.json({ error: "Service temporarily unavailable." }, { status: 503 });
+  }
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   let body: { task?: string; input?: Record<string, string> };

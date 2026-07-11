@@ -34,8 +34,13 @@ export async function submitSurveyResponse(formData: FormData): Promise<void> {
       value: r.value,
     }));
 
-  if (rows.length > 0) {
-    await db.surveyResponse.createMany({ data: rows });
+  try {
+    if (rows.length > 0) {
+      await db.surveyResponse.createMany({ data: rows });
+    }
+  } catch (err) {
+    console.error("[submitSurveyResponse]", err);
+    redirect(`/e/${slug}/survey/${surveyId}?error=1`);
   }
 
   redirect(`/e/${slug}/survey/${surveyId}?done=1`);

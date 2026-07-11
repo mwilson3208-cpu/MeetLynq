@@ -39,43 +39,56 @@ export async function registerForEvent(_prev: RegisterState, formData: FormData)
 
   // Free ticket → register immediately, then show confirmation.
   if (ticket.priceCents <= 0) {
-    await registerFree({
-      eventId: event.id,
-      eventName: event.name,
-      ticketId: ticket.id,
-      requiresApproval: ticket.requiresApproval,
-      firstName,
-      lastName,
-      email,
-    });
+    try {
+      await registerFree({
+        eventId: event.id,
+        eventName: event.name,
+        ticketId: ticket.id,
+        requiresApproval: ticket.requiresApproval,
+        firstName,
+        lastName,
+        email,
+      });
+    } catch (err) {
+      console.error("[register:free]", err);
+      return { error: "We couldn't complete your registration right now. Please try again in a moment." };
+    }
     redirect(`/e/${slug}/registered?free=1${ticket.requiresApproval ? "&approval=1" : ""}`);
   }
 
   // Paid ticket → create a pending order and go to checkout.
-  const effectivePrice = ticket.earlyBird && ticket.earlyBirdPriceCents ? ticket.earlyBirdPriceCents : ticket.priceCents;
-  const coupon = await resolveCoupon(event.id, couponCode, effectivePrice);
-  const { orderId } = await startPaidRegistration({
-    eventId: event.id,
-    ticketId: ticket.id,
-    firstName,
-    lastName,
-    email,
-    priceCents: effectivePrice,
-    currency: ticket.currency,
-    coupon,
-  });
+  let checkoutUrl: string;
+  try {
+    const effectivePrice = ticket.earlyBird && ticket.earlyBirdPriceCents ? ticket.earlyBirdPriceCents : ticket.priceCents;
+    const coupon = await resolveCoupon(event.id, couponCode, effectivePrice);
+    const { orderId } = await startPaidRegistration({
+      eventId: event.id,
+      ticketId: ticket.id,
+      firstName,
+      lastName,
+      email,
+      priceCents: effectivePrice,
+      currency: ticket.currency,
+      coupon,
+    });
 
-  const successUrl = `${appUrl()}/e/${slug}/registered?order=${orderId}`;
-  const cancelUrl = `${appUrl()}/e/${slug}?canceled=1#register`;
-  const checkoutUrl = await createCheckout({
-    orderId,
-    email,
-    ticketName: ticket.name,
-    amountCents: coupon ? Math.max(0, effectivePrice - coupon.discountCents) : effectivePrice,
-    currency: ticket.currency,
-    successUrl,
-    cancelUrl,
-  });
+    const successUrl = `${appUrl()}/e/${slug}/registered?order=${orderId}`;
+    const cancelUrl = `${appUrl()}/e/${slug}?canceled=1#register`;
+    checkoutUrl = await createCheckout({
+      orderId,
+      email,
+      ticketName: ticket.name,
+      amountCents: coupon ? Math.max(0, effectivePrice - coupon.discountCents) : effectivePrice,
+      currency: ticket.currency,
+      successUrl,
+      cancelUrl,
+    });
+  } catch (err) {
+    // Covers the payment provider being unreachable as well as database
+    // hiccups — nothing has been charged; the attendee can simply retry.
+    console.error("[register:paid]", err);
+    return { error: "We couldn't start checkout. You haven't been charged — please try again." };
+  }
 
   redirect(checkoutUrl);
 }

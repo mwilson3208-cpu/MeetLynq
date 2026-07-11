@@ -74,11 +74,18 @@ export async function sendCampaign(fd: FormData): Promise<void> {
 
   const emails = await recipientsFor(event.id, campaign.segment);
   if (emails.length > 0) {
-    await sendEmail({
-      to: emails,
-      subject: campaign.subject,
-      text: campaign.body || campaign.subject,
-    });
+    try {
+      await sendEmail({
+        to: emails,
+        subject: campaign.subject,
+        text: campaign.body || campaign.subject,
+      });
+    } catch (err) {
+      // Provider failure: leave the campaign in Draft so the organizer can
+      // retry — don't record a send that didn't happen.
+      console.error("[sendCampaign]", err);
+      return;
+    }
   }
 
   await db.emailCampaign.update({
