@@ -4,9 +4,10 @@ import { useActionState } from "react";
 import { useFormStatus } from "react-dom";
 import { ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input, Select, Field } from "@/components/ui/input";
+import { Input, Textarea, Select, Field } from "@/components/ui/input";
 import { withActionErrorFallback } from "@/components/ui/safe-action";
 import { formatMoney } from "@/lib/utils";
+import { isChoiceType, fieldInputName, type FieldDTO } from "@/lib/registration-fields";
 import type { RegisterState } from "@/app/e/[slug]/register/actions";
 
 export interface PublicTicket {
@@ -16,6 +17,41 @@ export interface PublicTicket {
   currency: string;
   earlyBird: boolean;
   earlyBirdPriceCents: number | null;
+}
+
+function CustomFieldInput({ field }: { field: FieldDTO }) {
+  const name = fieldInputName(field.id);
+  if (field.type === "LONG_TEXT") {
+    return <Textarea name={name} rows={3} required={field.required} />;
+  }
+  if (field.type === "SINGLE_CHOICE") {
+    return (
+      <Select name={name} required={field.required} defaultValue="">
+        <option value="" disabled={field.required}>
+          Select…
+        </option>
+        {field.options.map((o) => (
+          <option key={o} value={o}>
+            {o}
+          </option>
+        ))}
+      </Select>
+    );
+  }
+  if (field.type === "MULTI_CHOICE") {
+    return (
+      <div className="space-y-1.5">
+        {field.options.map((o) => (
+          <label key={o} className="flex items-center gap-2 text-sm">
+            <input type="checkbox" name={name} value={o} className="size-4 accent-[hsl(243_75%_59%)]" />
+            {o}
+          </label>
+        ))}
+      </div>
+    );
+  }
+  const inputType = field.type === "EMAIL" ? "email" : field.type === "PHONE" ? "tel" : field.type === "NUMBER" ? "number" : "text";
+  return <Input type={inputType} name={name} required={field.required} />;
 }
 
 function priceOf(t: PublicTicket) {
@@ -36,10 +72,12 @@ export function RegistrationForm({
   slug,
   tickets,
   action,
+  customFields = [],
 }: {
   slug: string;
   tickets: PublicTicket[];
   action: (prev: RegisterState, fd: FormData) => Promise<RegisterState>;
+  customFields?: FieldDTO[];
 }) {
   const [state, formAction] = useActionState(withActionErrorFallback(action), null);
   const hasPaid = tickets.some((t) => (t.earlyBird && t.earlyBirdPriceCents ? t.earlyBirdPriceCents : t.priceCents) > 0);
@@ -76,6 +114,12 @@ export function RegistrationForm({
           <Input name="coupon" placeholder="EARLY25" />
         </Field>
       )}
+
+      {customFields.map((f) => (
+        <Field key={f.id} label={f.required ? `${f.label} *` : f.label}>
+          <CustomFieldInput field={f} />
+        </Field>
+      ))}
 
       {state?.error && <p className="text-sm text-destructive">{state.error}</p>}
 

@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import { db } from "@/lib/db";
 import { formatMoney, formatDate, formatTime } from "@/lib/utils";
+import { parseOptions } from "@/lib/registration-fields";
 import {
   labelOf,
   EVENT_TYPES,
@@ -37,6 +38,7 @@ async function loadEvent(slug: string) {
         take: 8,
       },
       tickets: { where: { isActive: true }, orderBy: { priceCents: "asc" } },
+      registrationFields: { orderBy: { order: "asc" } },
     },
   });
 }
@@ -355,6 +357,13 @@ export default async function PublicEventPage({
                     currency: t.currency,
                     earlyBird: t.earlyBird,
                     earlyBirdPriceCents: t.earlyBirdPriceCents,
+                  }))}
+                  customFields={event.registrationFields.map((f) => ({
+                    id: f.id,
+                    label: f.label,
+                    type: f.type,
+                    required: f.required,
+                    options: parseOptions(f.options),
                   }))}
                 />
               </CardContent>

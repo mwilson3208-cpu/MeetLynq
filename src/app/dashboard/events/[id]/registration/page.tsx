@@ -4,7 +4,7 @@ import {
   Sparkles,
   ExternalLink,
   Check,
-  GripVertical,
+  Lock,
   Plus,
 } from "lucide-react";
 import { getEventOr404, getEventStats } from "@/lib/queries";
@@ -21,22 +21,25 @@ import { Badge } from "@/components/ui/badge";
 import { Button, ButtonLink } from "@/components/ui/button";
 import { pct } from "@/lib/utils";
 import { generate } from "@/lib/ai";
+import { db } from "@/lib/db";
+import { parseOptions, type FieldDTO } from "@/lib/registration-fields";
 import { SettingToggle } from "./setting-toggle";
-import { setRegistrationSetting } from "./actions";
+import { FieldBuilder } from "./field-builder";
+import {
+  setRegistrationSetting,
+  addRegistrationField,
+  deleteRegistrationField,
+  setFieldRequired,
+  reorderRegistrationFields,
+} from "./actions";
 import type { RegistrationSettingKey } from "./settings";
 
-const DEFAULT_FIELDS = [
-  { label: "First name", type: "Text", required: true },
-  { label: "Last name", type: "Text", required: true },
-  { label: "Email address", type: "Email", required: true },
-  { label: "Company", type: "Text", required: false },
-  { label: "Job title", type: "Text", required: false },
-];
-
-const CUSTOM_QUESTIONS = [
-  { label: "What is your primary goal for attending?", type: "Long text", required: true },
-  { label: "Which best describes your role?", type: "Single choice", required: true },
-  { label: "What topics matter most to you?", type: "Multi choice", required: false },
+// The core identity fields always live on the registration form and map to real
+// Registration columns, so they're locked (not editable/removable here).
+const SYSTEM_FIELDS = [
+  { label: "First name", type: "Text" },
+  { label: "Last name", type: "Text" },
+  { label: "Email address", type: "Email" },
 ];
 
 const SETTINGS: { key: RegistrationSettingKey; title: string; desc: string }[] = [
@@ -73,6 +76,18 @@ export default async function RegistrationSetup({
   const suggestion = await generate("registration_questions", { name: event.name });
   const conversion = pct(stats.checkedIn, stats.registrations);
 
+  const fieldRows = await db.registrationField.findMany({
+    where: { eventId: event.id },
+    orderBy: { order: "asc" },
+  });
+  const fields: FieldDTO[] = fieldRows.map((r) => ({
+    id: r.id,
+    label: r.label,
+    type: r.type,
+    required: r.required,
+    options: parseOptions(r.options),
+  }));
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -97,11 +112,11 @@ export default async function RegistrationSetup({
           hint={`${conversion}% of registrations`}
         />
         <StatCard
-          label="Form completion"
-          value={`${DEFAULT_FIELDS.length + CUSTOM_QUESTIONS.length} fields`}
+          label="Form fields"
+          value={`${SYSTEM_FIELDS.length + fields.length} fields`}
           icon={<Check />}
           tone="info"
-          hint={`${CUSTOM_QUESTIONS.length} custom questions`}
+          hint={`${fields.length} custom ${fields.length === 1 ? "question" : "questions"}`}
         />
       </div>
 
@@ -119,51 +134,40 @@ export default async function RegistrationSetup({
                 Default fields
               </p>
               <ul className="space-y-2">
-                {DEFAULT_FIELDS.map((f) => (
+                {SYSTEM_FIELDS.map((f) => (
                   <li
                     key={f.label}
-                    className="flex items-center justify-between rounded-lg border bg-card p-3"
+                    className="flex items-center justify-between rounded-lg border bg-secondary/30 p-3"
                   >
                     <span className="flex items-center gap-2.5 text-sm font-medium">
-                      <GripVertical className="size-4 text-muted-foreground" />
+                      <Lock className="size-3.5 text-muted-foreground" />
                       {f.label}
                     </span>
                     <span className="flex items-center gap-2">
                       <Badge tone="neutral">{f.type}</Badge>
-                      {f.required && <Badge tone="primary">Required</Badge>}
+                      <Badge tone="primary">Required</Badge>
                     </span>
                   </li>
                 ))}
               </ul>
+              <p className="mt-2 text-xs text-muted-foreground">
+                These identity fields are always collected and can&apos;t be removed.
+              </p>
             </div>
             <div>
               <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                 Custom questions
               </p>
-              <ul className="space-y-2">
-                {CUSTOM_QUESTIONS.map((f) => (
-                  <li
-                    key={f.label}
-                    className="flex items-center justify-between gap-3 rounded-lg border bg-card p-3"
-                  >
-                    <span className="flex items-center gap-2.5 text-sm font-medium">
-                      <GripVertical className="size-4 shrink-0 text-muted-foreground" />
-                      {f.label}
-                    </span>
-                    <span className="flex shrink-0 items-center gap-2">
-                      <Badge tone="info">{f.type}</Badge>
-                      {f.required && <Badge tone="primary">Required</Badge>}
-                    </span>
-                  </li>
-                ))}
-              </ul>
+              <FieldBuilder
+                eventId={event.id}
+                initial={fields}
+                addAction={addRegistrationField}
+                deleteAction={deleteRegistrationField}
+                requiredAction={setFieldRequired}
+                reorderAction={reorderRegistrationFields}
+              />
             </div>
           </CardContent>
-          <CardFooter>
-            <Button variant="outline" size="sm">
-              <Plus /> Add custom question
-            </Button>
-          </CardFooter>
         </Card>
 
         <Card>

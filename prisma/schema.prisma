@@ -124,6 +124,7 @@ model Event {
   leads            Lead[]
   checkIns         CheckIn[]
   badges           Badge[]
+  registrationFields RegistrationField[]
 
   @@index([organizationId])
 }
@@ -221,6 +222,25 @@ model Registration {
 
   @@index([eventId])
   @@index([status])
+}
+
+// Organizer-defined custom questions on the public registration form. The core
+// identity fields (first/last name, email) live on Registration itself; these
+// are the extra fields whose answers are stored in Registration.answers (JSON),
+// keyed by field id.
+model RegistrationField {
+  id        String   @id @default(cuid())
+  eventId   String
+  label     String
+  type      String   @default("TEXT") // TEXT | LONG_TEXT | EMAIL | PHONE | NUMBER | SINGLE_CHOICE | MULTI_CHOICE
+  required  Boolean  @default(false)
+  options   String?  // JSON string[] for SINGLE_CHOICE / MULTI_CHOICE
+  order     Int      @default(0)
+  createdAt DateTime @default(now())
+
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@index([eventId])
 }
 
 model Order {

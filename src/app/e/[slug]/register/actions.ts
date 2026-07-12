@@ -13,6 +13,7 @@ import {
   isAtCapacity,
 } from "@/lib/registration";
 import { createCheckout, appUrl } from "@/lib/stripe";
+import { parseOptions, collectFieldAnswers, type FieldDTO } from "@/lib/registration-fields";
 
 export type RegisterState = { error?: string; success?: string } | null;
 
@@ -35,7 +36,10 @@ export async function registerForEvent(_prev: RegisterState, formData: FormData)
   if (!EMAIL_RE.test(email)) return { error: "Please enter a valid email address." };
   if (!ticketId) return { error: "Please choose a ticket." };
 
-  const event = await db.event.findUnique({ where: { slug } });
+  const event = await db.event.findUnique({
+    where: { slug },
+    include: { registrationFields: { orderBy: { order: "asc" } } },
+  });
   if (!event) return { error: "Event not found." };
   if (event.status === "DRAFT") return { error: "Registration isn't open yet." };
 
@@ -48,6 +52,17 @@ export async function registerForEvent(_prev: RegisterState, formData: FormData)
   if (await alreadyRegistered(event.id, email)) {
     return { error: "You're already registered for this event with that email." };
   }
+
+  // Collect + validate the organizer's custom questions.
+  const customFields: FieldDTO[] = event.registrationFields.map((f) => ({
+    id: f.id,
+    label: f.label,
+    type: f.type,
+    required: f.required,
+    options: parseOptions(f.options),
+  }));
+  const { answers, error: answersError } = collectFieldAnswers(customFields, formData);
+  if (answersError) return { error: answersError };
 
   // Waitlist: when the organizer has enabled it and the event has reached its
   // capacity, new sign-ups join the waitlist instead of registering — for both
@@ -66,6 +81,7 @@ export async function registerForEvent(_prev: RegisterState, formData: FormData)
           firstName,
           lastName,
           email,
+          answers,
         });
       } catch (err) {
         console.error("[register:waitlist]", err);
@@ -90,6 +106,7 @@ export async function registerForEvent(_prev: RegisterState, formData: FormData)
         firstName,
         lastName,
         email,
+        answers,
       });
     } catch (err) {
       console.error("[register:free]", err);
@@ -112,6 +129,7 @@ export async function registerForEvent(_prev: RegisterState, formData: FormData)
       priceCents: effectivePrice,
       currency: ticket.currency,
       coupon,
+      answers,
     });
 
     const successUrl = `${appUrl()}/e/${slug}/registered?order=${orderId}`;
