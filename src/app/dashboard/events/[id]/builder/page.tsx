@@ -1,8 +1,21 @@
-import { Layers, Sparkles, ChevronUp, ChevronDown, Eye, EyeOff, Trash2, Rocket } from "lucide-react";
+import {
+  Layers,
+  Sparkles,
+  ChevronUp,
+  ChevronDown,
+  Eye,
+  EyeOff,
+  Trash2,
+  Rocket,
+  TriangleAlert,
+  CircleCheck,
+  ExternalLink,
+} from "lucide-react";
 import { getEventOr404 } from "@/lib/queries";
 import { db } from "@/lib/db";
 import { generate } from "@/lib/ai";
-import { Button } from "@/components/ui/button";
+import { EVENT_STATUS } from "@/lib/constants";
+import { Button, ButtonLink } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input, Field, Textarea, Select } from "@/components/ui/input";
@@ -25,6 +38,7 @@ import {
   publishAllPages,
   updateBrandColor,
 } from "./actions";
+import { setEventStatus } from "../settings/actions";
 import { BrandColorPicker } from "./brand-color";
 
 const SECTION_TYPES = ["hero", "richtext", "speakers", "sponsors", "agenda", "tickets", "marketplace", "cta", "gallery", "faq"];
@@ -115,6 +129,49 @@ export default async function EventBuilder({ params }: { params: Promise<{ id: s
           </form>
         </div>
       </div>
+
+      {/* Registration status banner — the fastest path from building to a live registration page. */}
+      {event.status === "DRAFT" ? (
+        <div className="flex flex-col gap-3 rounded-lg border border-warning/40 bg-warning/10 p-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-start gap-2.5">
+            <TriangleAlert className="mt-0.5 size-4 shrink-0 text-warning-foreground" />
+            <div>
+              <p className="text-sm font-medium">Your event is still a draft — attendees can&apos;t register yet.</p>
+              <p className="text-xs text-muted-foreground">Publish the event to open registration on your public page.</p>
+            </div>
+          </div>
+          <div className="flex shrink-0 items-center gap-2">
+            <ButtonLink href={`/e/${event.slug}`} variant="outline" size="sm">
+              <Eye /> Preview page
+            </ButtonLink>
+            <form action={setEventStatus}>
+              <input type="hidden" name="eventId" value={event.id} />
+              <input type="hidden" name="status" value="PUBLISHED" />
+              <Button type="submit" size="sm">
+                <Rocket /> Publish event
+              </Button>
+            </form>
+          </div>
+        </div>
+      ) : event.status === "PUBLISHED" || event.status === "LIVE" ? (
+        <div className="flex flex-col gap-3 rounded-lg border border-success/40 bg-success/10 p-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-start gap-2.5">
+            <CircleCheck className="mt-0.5 size-4 shrink-0 text-success" />
+            <p className="text-sm font-medium">Registration is live — attendees can sign up on your public page.</p>
+          </div>
+          <ButtonLink href={`/e/${event.slug}`} variant="outline" size="sm" className="shrink-0">
+            <ExternalLink /> View registration page
+          </ButtonLink>
+        </div>
+      ) : (
+        <div className="flex items-center gap-2.5 rounded-lg border bg-secondary/40 p-4">
+          <Eye className="size-4 shrink-0 text-muted-foreground" />
+          <p className="text-sm text-muted-foreground">
+            This event is {EVENT_STATUS[event.status]?.label.toLowerCase() ?? event.status} — registration is closed. Change the
+            status under <span className="font-medium text-foreground">Settings</span> to reopen it.
+          </p>
+        </div>
+      )}
 
       <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
         {/* LEFT: page + section editor */}

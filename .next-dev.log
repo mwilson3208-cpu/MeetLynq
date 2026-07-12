@@ -1,0 +1,51 @@
+   ▲ Next.js 15.5.19
+   - Local:        http://localhost:3100
+   - Network:      http://192.0.2.2:3100
+   - Environments: .env
+
+ ✓ Starting...
+ ✓ Ready in 1818ms
+ ○ Compiling /login ...
+ ✓ Compiled /login in 1525ms (681 modules)
+ GET /login 200 in 2175ms
+ GET /login 200 in 158ms
+ ⚠ Cross origin request detected from 127.0.0.1 to /_next/* resource. In a future major version of Next.js, you will need to explicitly configure "allowedDevOrigins" in next.config to allow this.
+Read more: https://nextjs.org/docs/app/api-reference/config/next-config-js/allowedDevOrigins
+ ○ Compiling /icon.svg ...
+ ✓ Compiled /icon.svg in 529ms (457 modules)
+ GET /icon.svg?2472115a8cbef7f0 200 in 747ms
+ ○ Compiling /dashboard ...
+ ✓ Compiled /dashboard in 2.5s (765 modules)
+ GET /dashboard 200 in 3043ms
+ POST /login 303 in 3583ms
+ GET /dashboard 200 in 165ms
+ ○ Compiling /dashboard/events/[id]/builder ...
+ ✓ Compiled /dashboard/events/[id]/builder in 2.1s (861 modules)
+ GET /icon.svg?2472115a8cbef7f0 200 in 2301ms
+ GET /dashboard/events/cmrh2v8jw000d7dghaw57d33r/builder 200 in 4877ms
+ GET /icon.svg?2472115a8cbef7f0 200 in 28ms
+ POST /dashboard/events/cmrh2v8jw000d7dghaw57d33r/builder 200 in 376ms
+ POST /dashboard/events/cmrh2v8jw000d7dghaw57d33r/builder 200 in 395ms
+ POST /dashboard/events/cmrh2v8jw000d7dghaw57d33r/builder 200 in 422ms
+ POST /dashboard/events/cmrh2v8jw000d7dghaw57d33r/builder 200 in 361ms
+ POST /dashboard/events/cmrh2v8jw000d7dghaw57d33r/builder 200 in 311ms
+ POST /dashboard/events/cmrh2v8jw000d7dghaw57d33r/builder 200 in 388ms
+ POST /dashboard/events/cmrh2v8jw000d7dghaw57d33r/builder 200 in 344ms
+ POST /dashboard/events/cmrh2v8jw000d7dghaw57d33r/builder 200 in 345ms
+ POST /dashboard/events/cmrh2v8jw000d7dghaw57d33r/builder 200 in 363ms
+ ✓ Compiled in 1111ms (850 modules)
+ ✓ Compiled in 612ms (852 modules)
+ ✓ Compiled in 524ms (853 modules)
+ ✓ Compiled /login in 181ms (574 modules)
+ GET /login 200 in 703ms
+ ○ Compiling /icon.svg ...
+ ✓ Compiled /icon.svg in 540ms (591 modules)
+ GET /icon.svg?2472115a8cbef7f0 200 in 696ms
+ GET /dashboard 200 in 238ms
+ POST /login 303 in 405ms
+ GET /icon.svg?2472115a8cbef7f0 200 in 397ms
+ GET /dashboard/events/cmrh2v8jw000d7dghaw57d33r/builder 200 in 1345ms
+ GET /icon.svg?2472115a8cbef7f0 200 in 20ms
+ POST /dashboard/events/cmrh2v8jw000d7dghaw57d33r/builder 200 in 369ms
+ POST /dashboard/events/cmrh2v8jw000d7dghaw57d33r/builder 200 in 406ms
+[?25h
