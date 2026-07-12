@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { getEventOr404 } from "@/lib/queries";
 import { slugify, parseJson } from "@/lib/utils";
+import { generate } from "@/lib/ai";
 
 type State = { ok?: boolean; error?: string };
 
@@ -23,6 +24,47 @@ async function pageOfEvent(eventId: string, pageId: string) {
 /** Confirm a section belongs to the current org's event. */
 async function sectionOfEvent(eventId: string, sectionId: string) {
   return db.eventSection.findFirst({ where: { id: sectionId, page: { eventId } } });
+}
+
+// --- Page content ------------------------------------------------------------
+
+const MAX_NAME = 200;
+const MAX_TAGLINE = 300;
+const MAX_DESCRIPTION = 10000;
+
+/**
+ * Update the hero + about content shown on the public event page (name,
+ * tagline, description) straight from the Builder.
+ */
+export async function updatePageContent(_prev: State | null, fd: FormData): Promise<State> {
+  const event = await getEventOr404(str(fd, "eventId"));
+  const name = str(fd, "name").slice(0, MAX_NAME);
+  if (!name) return { error: "Your event needs a name." };
+  const tagline = str(fd, "tagline").slice(0, MAX_TAGLINE) || null;
+  const description = str(fd, "description").slice(0, MAX_DESCRIPTION) || null;
+
+  try {
+    await db.event.update({ where: { id: event.id }, data: { name, tagline, description } });
+  } catch (err) {
+    console.error("[updatePageContent]", err);
+    return { error: "Couldn't save your changes. Please try again." };
+  }
+
+  revalidatePath(`/dashboard/events/${event.id}`, "layout");
+  revalidatePath(`/e/${event.slug}`);
+  return { ok: true };
+}
+
+/** Generate an AI draft for the "About this event" description. */
+export async function draftDescription(eventId: string): Promise<{ text?: string; error?: string }> {
+  const event = await getEventOr404(eventId);
+  try {
+    const ai = await generate("event_description", { name: event.name });
+    return { text: ai.output };
+  } catch (err) {
+    console.error("[draftDescription]", err);
+    return { error: "Couldn't generate a draft right now. Please try again." };
+  }
 }
 
 // --- Branding ----------------------------------------------------------------

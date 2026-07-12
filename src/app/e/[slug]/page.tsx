@@ -8,7 +8,7 @@ import {
   Clock,
 } from "lucide-react";
 import { db } from "@/lib/db";
-import { formatMoney, formatDate, formatTime } from "@/lib/utils";
+import { formatMoney, formatDate, formatTime, parseJson } from "@/lib/utils";
 import { parseOptions } from "@/lib/registration-fields";
 import {
   labelOf,
@@ -39,9 +39,17 @@ async function loadEvent(slug: string) {
       },
       tickets: { where: { isActive: true }, orderBy: { priceCents: "asc" } },
       registrationFields: { orderBy: { order: "asc" } },
+      pages: {
+        where: { isHome: true, published: true },
+        include: { sections: { orderBy: { order: "asc" } } },
+      },
     },
   });
 }
+
+// Section types with dedicated blocks on this page already; custom rendering
+// covers the free-form text types built in the event builder.
+const BUILT_IN_SECTION_TYPES = new Set(["hero", "speakers", "sponsors", "agenda", "tickets", "marketplace"]);
 
 export async function generateMetadata({
   params,
@@ -70,6 +78,15 @@ export default async function PublicEventPage({
   const hasSpeakers = event.speakers.length > 0;
   const hasSessions = event.sessions.length > 0;
   const hasSponsors = event.sponsors.length > 0;
+
+  // Free-form sections built in the event builder (home page only).
+  const customSections = (event.pages[0]?.sections ?? [])
+    .filter((s) => !BUILT_IN_SECTION_TYPES.has(s.type))
+    .map((s) => {
+      const cfg = parseJson<{ heading?: string | null; body?: string | null }>(s.config, {});
+      return { id: s.id, heading: cfg.heading ?? null, body: cfg.body ?? null };
+    })
+    .filter((s) => s.heading || s.body);
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
@@ -168,6 +185,24 @@ export default async function PublicEventPage({
             </div>
           </section>
         )}
+
+        {/* Custom sections from the event builder (home page, published) */}
+        {customSections.map((s) => (
+          <section key={s.id} className="container py-12 lg:py-16">
+            <div className="mx-auto max-w-3xl">
+              {s.heading && (
+                <h2 className="text-2xl font-bold tracking-tight sm:text-3xl">{s.heading}</h2>
+              )}
+              {s.body && (
+                <div className="mt-5 space-y-4 text-pretty text-lg leading-relaxed text-muted-foreground">
+                  {s.body.split(/\n{2,}/).map((para, i) => (
+                    <p key={i}>{para}</p>
+                  ))}
+                </div>
+              )}
+            </div>
+          </section>
+        ))}
 
         {/* Speakers */}
         {hasSpeakers && (

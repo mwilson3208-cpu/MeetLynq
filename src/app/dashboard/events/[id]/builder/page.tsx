@@ -1,6 +1,6 @@
+import Link from "next/link";
 import {
   Layers,
-  Sparkles,
   ChevronUp,
   ChevronDown,
   Eye,
@@ -13,7 +13,6 @@ import {
 } from "lucide-react";
 import { getEventOr404 } from "@/lib/queries";
 import { db } from "@/lib/db";
-import { generate } from "@/lib/ai";
 import { EVENT_STATUS } from "@/lib/constants";
 import { Button, ButtonLink } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
@@ -23,7 +22,7 @@ import { FormDialog } from "@/components/ui/form-dialog";
 import { EmptyState, Separator } from "@/components/ui/misc";
 import { isStorageConfigured } from "@/lib/storage";
 import { ImageUpload } from "@/components/builder/image-upload";
-import { parseJson, cn } from "@/lib/utils";
+import { parseJson, cn, formatDate } from "@/lib/utils";
 import { uploadEventCover } from "./upload-actions";
 import {
   createSection,
@@ -37,9 +36,12 @@ import {
   deletePage,
   publishAllPages,
   updateBrandColor,
+  updatePageContent,
+  draftDescription,
 } from "./actions";
 import { setEventStatus } from "../settings/actions";
 import { BrandColorPicker } from "./brand-color";
+import { PageContentEditor } from "./page-content";
 
 const SECTION_TYPES = ["hero", "richtext", "speakers", "sponsors", "agenda", "tickets", "marketplace", "cta", "gallery", "faq"];
 
@@ -95,7 +97,53 @@ export default async function EventBuilder({ params }: { params: Promise<{ id: s
     orderBy: { navOrder: "asc" },
   });
 
-  const ai = await generate("page_copy", { name: event.name });
+  const [ticketCount, questionCount] = await Promise.all([
+    db.ticket.count({ where: { eventId: id, isActive: true } }),
+    db.registrationField.count({ where: { eventId: id } }),
+  ]);
+
+  // Eventbrite-style setup checklist, computed from the data the public page
+  // actually renders.
+  const isLive = event.status === "PUBLISHED" || event.status === "LIVE";
+  const checklist = [
+    {
+      label: "Add a tagline",
+      hint: "One line under your title that sells the event.",
+      done: Boolean(event.tagline),
+      href: "#page-content",
+    },
+    {
+      label: "Tell your story",
+      hint: "The “About this event” section — draft it with AI in one click.",
+      done: Boolean(event.description),
+      href: "#page-content",
+    },
+    {
+      label: "Set date & location",
+      hint: "Attendees see these in your hero.",
+      done: Boolean(event.startsAt) && Boolean(event.venueName || event.city || event.format !== "IN_PERSON"),
+      href: `/dashboard/events/${id}/settings`,
+    },
+    {
+      label: "Create a ticket",
+      hint: "Free or paid — registration needs at least one.",
+      done: ticketCount > 0,
+      href: `/dashboard/events/${id}/tickets`,
+    },
+    {
+      label: "Add registration questions",
+      hint: "Optional — learn who's coming and what they want.",
+      done: questionCount > 0,
+      href: `/dashboard/events/${id}/registration`,
+    },
+    {
+      label: "Publish your event",
+      hint: "Opens registration on your public page.",
+      done: isLive,
+      href: null,
+    },
+  ];
+  const doneCount = checklist.filter((c) => c.done).length;
 
   const sectionTypeSelect = (defaultVal = "richtext") => (
     <Select name="type" defaultValue={defaultVal}>
@@ -112,7 +160,9 @@ export default async function EventBuilder({ params }: { params: Promise<{ id: s
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h2 className="text-lg font-semibold">Event builder</h2>
-          <p className="text-sm text-muted-foreground">Design your pages, sections, and branding — no code required.</p>
+          <p className="text-sm text-muted-foreground">
+            Build your event page the way attendees will see it — title, story, sections, and branding.
+          </p>
         </div>
         <div className="flex items-center gap-2">
           <FormDialog buttonLabel="Add page" title="Add page" action={createPage} submitLabel="Add page" buttonSize="sm">
@@ -174,8 +224,39 @@ export default async function EventBuilder({ params }: { params: Promise<{ id: s
       )}
 
       <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
-        {/* LEFT: page + section editor */}
+        {/* LEFT: content editor + sections */}
         <div className="space-y-6">
+          {/* Hero + About — the content the public page actually renders */}
+          <Card id="page-content" className="scroll-mt-6">
+            <CardHeader>
+              <CardTitle className="text-base">Page content</CardTitle>
+              <CardDescription>
+                Your title, tagline, and story — exactly what attendees read on your public page.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <PageContentEditor
+                eventId={event.id}
+                initial={{
+                  name: event.name,
+                  tagline: event.tagline ?? "",
+                  description: event.description ?? "",
+                }}
+                action={updatePageContent}
+                aiDraft={draftDescription}
+              />
+            </CardContent>
+          </Card>
+
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-sm font-semibold">Extra sections</h3>
+              <p className="text-xs text-muted-foreground">
+                Sections on your Home page appear on the public event page, below your story.
+              </p>
+            </div>
+          </div>
+
           {pages.length === 0 ? (
             <EmptyState
               icon={<Layers />}
@@ -282,8 +363,56 @@ export default async function EventBuilder({ params }: { params: Promise<{ id: s
           )}
         </div>
 
-        {/* RIGHT: sticky preview + brand + SEO + AI */}
+        {/* RIGHT: sticky checklist + preview + brand */}
         <div className="space-y-6 lg:sticky lg:top-6 lg:self-start">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center justify-between text-base">
+                Get your page ready
+                <span className="text-sm font-normal text-muted-foreground">
+                  {doneCount} of {checklist.length}
+                </span>
+              </CardTitle>
+              <div className="h-1.5 overflow-hidden rounded-full bg-secondary">
+                <div
+                  className="h-full rounded-full bg-primary transition-all"
+                  style={{ width: `${Math.round((doneCount / checklist.length) * 100)}%` }}
+                />
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-1">
+              {checklist.map((item) => {
+                const inner = (
+                  <>
+                    <span
+                      className={cn(
+                        "mt-0.5 flex size-4 shrink-0 items-center justify-center rounded-full border",
+                        item.done ? "border-success bg-success text-white" : "border-muted-foreground/40"
+                      )}
+                    >
+                      {item.done && <CircleCheck className="size-4" />}
+                    </span>
+                    <span className="min-w-0">
+                      <span className={cn("block text-sm font-medium", item.done && "text-muted-foreground line-through")}>
+                        {item.label}
+                      </span>
+                      {!item.done && <span className="block text-xs text-muted-foreground">{item.hint}</span>}
+                    </span>
+                  </>
+                );
+                return item.href && !item.done ? (
+                  <Link key={item.label} href={item.href} className="flex items-start gap-2.5 rounded-lg p-2 hover:bg-secondary/60">
+                    {inner}
+                  </Link>
+                ) : (
+                  <div key={item.label} className="flex items-start gap-2.5 rounded-lg p-2">
+                    {inner}
+                  </div>
+                );
+              })}
+            </CardContent>
+          </Card>
+
           <Card className="overflow-hidden">
             <div
               className="px-5 py-8 text-white"
@@ -292,9 +421,19 @@ export default async function EventBuilder({ params }: { params: Promise<{ id: s
               <p className="text-xs font-medium uppercase tracking-wide opacity-80">Live preview</p>
               <h3 className="mt-1 text-xl font-semibold">{event.name}</h3>
               {event.tagline && <p className="mt-1 text-sm opacity-90">{event.tagline}</p>}
+              <p className="mt-3 text-xs opacity-80">
+                {event.startsAt ? formatDate(event.startsAt) : "Date TBA"}
+                {event.city ? ` · ${event.city}` : ""}
+              </p>
+              <span className="mt-3 inline-block rounded-lg bg-white/90 px-3 py-1.5 text-xs font-semibold" style={{ color: event.brandColor }}>
+                Register now
+              </span>
             </div>
-            <CardContent className="py-4 text-sm text-muted-foreground">
-              This is how your hero will render to attendees.
+            <CardContent className="flex items-center justify-between py-3 text-sm text-muted-foreground">
+              How your hero renders to attendees.
+              <ButtonLink href={`/e/${event.slug}`} variant="ghost" size="sm">
+                <ExternalLink /> Open
+              </ButtonLink>
             </CardContent>
           </Card>
 
@@ -322,17 +461,6 @@ export default async function EventBuilder({ params }: { params: Promise<{ id: s
             </CardContent>
           </Card>
 
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-base">
-                <Sparkles className="size-4 text-primary" /> AI page copy
-              </CardTitle>
-              <CardDescription>Suggested hero copy — edit before publishing.</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <p className="whitespace-pre-wrap rounded-lg bg-secondary/50 p-3 text-sm">{ai.output}</p>
-            </CardContent>
-          </Card>
         </div>
       </div>
     </div>
