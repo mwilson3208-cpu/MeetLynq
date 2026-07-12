@@ -21,6 +21,9 @@ import { Badge } from "@/components/ui/badge";
 import { Button, ButtonLink } from "@/components/ui/button";
 import { pct } from "@/lib/utils";
 import { generate } from "@/lib/ai";
+import { SettingToggle } from "./setting-toggle";
+import { setRegistrationSetting } from "./actions";
+import type { RegistrationSettingKey } from "./settings";
 
 const DEFAULT_FIELDS = [
   { label: "First name", type: "Text", required: true },
@@ -36,47 +39,28 @@ const CUSTOM_QUESTIONS = [
   { label: "What topics matter most to you?", type: "Multi choice", required: false },
 ];
 
-const SETTINGS = [
+const SETTINGS: { key: RegistrationSettingKey; title: string; desc: string }[] = [
   {
+    key: "requireApproval",
     title: "Manual approval",
     desc: "Review each registration before confirming a spot.",
-    enabled: true,
   },
   {
+    key: "waitlistEnabled",
     title: "Waitlist",
     desc: "Collect sign-ups once capacity is reached.",
-    enabled: true,
   },
   {
+    key: "conditionalFields",
     title: "Conditional fields",
     desc: "Show questions based on previous answers.",
-    enabled: false,
   },
   {
+    key: "groupRegistration",
     title: "Group registration",
     desc: "Let one buyer register multiple attendees.",
-    enabled: false,
   },
 ];
-
-function Toggle({ enabled }: { enabled: boolean }) {
-  return (
-    <span
-      className={
-        "relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors " +
-        (enabled ? "bg-primary" : "bg-secondary")
-      }
-      aria-hidden
-    >
-      <span
-        className={
-          "inline-block size-5 transform rounded-full bg-white shadow transition-transform " +
-          (enabled ? "translate-x-5" : "translate-x-0.5")
-        }
-      />
-    </span>
-  );
-}
 
 export default async function RegistrationSetup({
   params,
@@ -189,16 +173,15 @@ export default async function RegistrationSetup({
           </CardHeader>
           <CardContent className="space-y-1">
             {SETTINGS.map((s) => (
-              <label
-                key={s.title}
-                className="flex cursor-pointer items-start justify-between gap-3 rounded-lg p-2.5 hover:bg-secondary/50"
-              >
-                <span>
-                  <span className="block text-sm font-medium">{s.title}</span>
-                  <span className="block text-xs text-muted-foreground">{s.desc}</span>
-                </span>
-                <Toggle enabled={s.enabled} />
-              </label>
+              <SettingToggle
+                key={s.key}
+                eventId={event.id}
+                settingKey={s.key}
+                title={s.title}
+                desc={s.desc}
+                initial={event[s.key]}
+                action={setRegistrationSetting}
+              />
             ))}
           </CardContent>
         </Card>

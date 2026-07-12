@@ -45,6 +45,10 @@ export async function registerForEvent(_prev: RegisterState, formData: FormData)
     return { error: "You're already registered for this event with that email." };
   }
 
+  // Approval is required when either the ticket or the event-level
+  // "Manual approval" setting asks for it.
+  const requiresApproval = ticket.requiresApproval || event.requireApproval;
+
   // Free ticket → register immediately, then show confirmation.
   if (ticket.priceCents <= 0) {
     try {
@@ -52,7 +56,7 @@ export async function registerForEvent(_prev: RegisterState, formData: FormData)
         eventId: event.id,
         eventName: event.name,
         ticketId: ticket.id,
-        requiresApproval: ticket.requiresApproval,
+        requiresApproval,
         firstName,
         lastName,
         email,
@@ -61,7 +65,7 @@ export async function registerForEvent(_prev: RegisterState, formData: FormData)
       console.error("[register:free]", err);
       return { error: "We couldn't complete your registration right now. Please try again in a moment." };
     }
-    redirect(`/e/${slug}/registered?free=1${ticket.requiresApproval ? "&approval=1" : ""}`);
+    redirect(`/e/${slug}/registered?free=1${requiresApproval ? "&approval=1" : ""}`);
   }
 
   // Paid ticket → create a pending order and go to checkout.

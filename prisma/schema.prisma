@@ -91,6 +91,11 @@ model Event {
   seoDescription String?
   capacity       Int?
   matchRules     String?  // JSON: organizer-controlled matchmaking rules
+  // Registration-form behavior toggles (Registration setup → Settings).
+  requireApproval   Boolean @default(false) // review each registration before confirming
+  waitlistEnabled   Boolean @default(false) // collect sign-ups once capacity is reached
+  conditionalFields Boolean @default(false) // show questions based on previous answers
+  groupRegistration Boolean @default(false) // let one buyer register multiple attendees
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
