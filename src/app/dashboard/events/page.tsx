@@ -1,5 +1,7 @@
 import Link from "next/link";
-import { CalendarDays, Plus, MapPin } from "lucide-react";
+import { CalendarDays, Plus, MapPin, Pencil } from "lucide-react";
+import { DeleteButton } from "@/components/ui/delete-button";
+import { deleteEvent } from "./[id]/settings/actions";
 import { requireOrg } from "@/lib/queries";
 import { db } from "@/lib/db";
 import { PageHeader, EmptyState } from "@/components/ui/misc";
@@ -49,13 +51,15 @@ export default async function EventsPage() {
           {events.map((e) => {
             const status = EVENT_STATUS[e.status];
             return (
-              <Link key={e.id} href={`/dashboard/events/${e.id}`}>
-                <Card className="h-full overflow-hidden transition-shadow hover:shadow-md">
+              <Card key={e.id} className="h-full overflow-hidden transition-shadow hover:shadow-md">
+                <Link href={`/dashboard/events/${e.id}`} className="block">
                   <div
                     className="h-24 bg-brand-gradient"
                     style={{ background: `linear-gradient(135deg, ${e.brandColor}22, ${e.brandColor}08)` }}
                   />
-                  <CardContent className="p-5">
+                </Link>
+                <CardContent className="p-5">
+                  <Link href={`/dashboard/events/${e.id}`} className="block">
                     <div className="-mt-9 mb-3 flex size-12 items-center justify-center rounded-xl border bg-card shadow-sm">
                       <CalendarDays className="size-5 text-primary" />
                     </div>
@@ -73,13 +77,32 @@ export default async function EventsPage() {
                         </span>
                       )}
                     </div>
-                    <div className="mt-4 flex gap-4 border-t pt-3 text-sm">
+                  </Link>
+                  <div className="mt-4 flex items-center justify-between border-t pt-3 text-sm">
+                    <div className="flex gap-4">
                       <span><strong>{e._count.registrations}</strong> <span className="text-muted-foreground">registered</span></span>
                       <span><strong>{e._count.sessions}</strong> <span className="text-muted-foreground">sessions</span></span>
                     </div>
-                  </CardContent>
-                </Card>
-              </Link>
+                    <div className="flex shrink-0 items-center gap-1">
+                      <ButtonLink
+                        href={`/dashboard/events/${e.id}/settings`}
+                        variant="ghost"
+                        size="sm"
+                        aria-label={`Edit ${e.name}`}
+                      >
+                        <Pencil /> Edit
+                      </ButtonLink>
+                      <DeleteButton
+                        action={deleteEvent}
+                        id={e.id}
+                        eventId={e.id}
+                        redirectTo="/dashboard/events"
+                        confirmText={`Permanently delete "${e.name}" and ALL its data (registrations, tickets, sessions)? This cannot be undone.`}
+                      />
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
             );
           })}
         </div>

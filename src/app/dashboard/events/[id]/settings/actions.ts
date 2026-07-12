@@ -69,5 +69,9 @@ export async function deleteEvent(fd: FormData): Promise<void> {
   const event = await getEventOr404(str(fd, "eventId"));
   await db.event.delete({ where: { id: event.id } });
   revalidatePath("/dashboard/events");
-  redirect("/dashboard/events");
+  revalidatePath("/dashboard");
+  // Stay on the page the delete came from (overview or events list); only
+  // dashboard-internal targets are honored.
+  const to = str(fd, "redirectTo");
+  redirect(to.startsWith("/dashboard") ? to : "/dashboard/events");
 }

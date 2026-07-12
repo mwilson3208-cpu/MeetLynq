@@ -4,9 +4,9 @@ import {
   Users,
   CalendarClock,
   DollarSign,
-  ArrowRight,
   Sparkles,
   Plus,
+  Pencil,
 } from "lucide-react";
 import { requireOrg } from "@/lib/queries";
 import { db } from "@/lib/db";
@@ -14,6 +14,8 @@ import { PageHeader, StatCard, EmptyState, Avatar } from "@/components/ui/misc";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ButtonLink } from "@/components/ui/button";
+import { DeleteButton } from "@/components/ui/delete-button";
+import { deleteEvent } from "./events/[id]/settings/actions";
 import { EVENT_STATUS, EVENT_TYPES, labelOf } from "@/lib/constants";
 import { formatDate, formatMoney, pct } from "@/lib/utils";
 
@@ -78,9 +80,9 @@ export default async function DashboardHome() {
               {events.map((e) => {
                 const status = EVENT_STATUS[e.status];
                 return (
-                  <Link key={e.id} href={`/dashboard/events/${e.id}`}>
-                    <Card className="transition-shadow hover:shadow-md">
-                      <CardContent className="flex items-center gap-4 p-4">
+                  <Card key={e.id} className="transition-shadow hover:shadow-md">
+                    <CardContent className="flex items-center gap-4 p-4">
+                      <Link href={`/dashboard/events/${e.id}`} className="flex min-w-0 flex-1 items-center gap-4">
                         <div className="flex size-12 shrink-0 items-center justify-center rounded-lg bg-accent text-accent-foreground">
                           <CalendarDays className="size-5" />
                         </div>
@@ -97,10 +99,26 @@ export default async function DashboardHome() {
                           <p className="text-sm font-semibold">{e._count.registrations}</p>
                           <p className="text-xs text-muted-foreground">registered</p>
                         </div>
-                        <ArrowRight className="size-4 text-muted-foreground" />
-                      </CardContent>
-                    </Card>
-                  </Link>
+                      </Link>
+                      <div className="flex shrink-0 items-center gap-1">
+                        <ButtonLink
+                          href={`/dashboard/events/${e.id}/settings`}
+                          variant="ghost"
+                          size="sm"
+                          aria-label={`Edit ${e.name}`}
+                        >
+                          <Pencil /> Edit
+                        </ButtonLink>
+                        <DeleteButton
+                          action={deleteEvent}
+                          id={e.id}
+                          eventId={e.id}
+                          redirectTo="/dashboard"
+                          confirmText={`Permanently delete "${e.name}" and ALL its data (registrations, tickets, sessions)? This cannot be undone.`}
+                        />
+                      </div>
+                    </CardContent>
+                  </Card>
                 );
               })}
             </div>
