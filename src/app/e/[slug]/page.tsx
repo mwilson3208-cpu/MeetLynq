@@ -7,6 +7,16 @@ import {
   Sparkles,
   Clock,
 } from "lucide-react";
+
+// ISR: serve the public event page from cache and re-render at most once a
+// minute. Organizer edits stay instant — every builder/settings action calls
+// revalidatePath(`/e/${slug}`), which busts this cache on demand. The empty
+// generateStaticParams is required: without it Next treats the route as fully
+// dynamic and never caches; with it, slugs are rendered on demand and cached.
+export const revalidate = 60;
+export async function generateStaticParams() {
+  return [];
+}
 import { db } from "@/lib/db";
 import { formatMoney, formatDate, formatTime, parseJson } from "@/lib/utils";
 import { parseOptions } from "@/lib/registration-fields";
@@ -29,6 +39,9 @@ import { registerForEvent } from "./register/actions";
 async function loadEvent(slug: string) {
   return db.event.findUnique({
     where: { slug },
+    // Single-statement join: this include otherwise fans out into ~10
+    // sequential queries — the dominant cost of the public page.
+    relationLoadStrategy: "join",
     include: {
       speakers: { take: 8, orderBy: { featured: "desc" } },
       sponsors: { orderBy: { level: "asc" } },

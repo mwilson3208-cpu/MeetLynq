@@ -7,7 +7,11 @@
 // ---------------------------------------------------------------------------
 
 generator client {
-  provider = "prisma-client-js"
+  provider        = "prisma-client-js"
+  // relationJoins: lets hot queries load relations with a single SQL statement
+  // (relationLoadStrategy: "join") instead of one query per relation — each
+  // extra query is a full network round-trip in production.
+  previewFeatures = ["relationJoins"]
 }
 
 datasource db {

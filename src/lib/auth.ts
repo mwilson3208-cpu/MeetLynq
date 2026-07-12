@@ -102,6 +102,9 @@ export const getCurrentUser = reactCache(async () => {
   const user = await db.user.findUnique({
     where: { id: userId },
     include: { memberships: { include: { organization: true } } },
+    // Single-statement join: without it this include is three sequential
+    // queries (user → memberships → organizations) on every request.
+    relationLoadStrategy: "join",
   });
   return user;
 });
