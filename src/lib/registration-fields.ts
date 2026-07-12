@@ -66,6 +66,45 @@ export function fieldInputName(id: string): string {
   return `custom_${id}`;
 }
 
+export interface SuggestedField {
+  label: string;
+  type: FieldType;
+  options: string[];
+}
+
+/**
+ * Turn an AI-generated block of suggested questions into structured fields.
+ * A trailing "(A / B / C)" becomes a single-choice field with those options;
+ * everything else becomes a long-text question. De-dupes by label.
+ */
+export function parseSuggestedQuestions(text: string): SuggestedField[] {
+  const out: SuggestedField[] = [];
+  const seen = new Set<string>();
+  for (const raw of (text ?? "").split(/\r?\n/)) {
+    // Strip a leading bullet or "1." / "1)" marker.
+    let line = raw.trim().replace(/^([•\-*]|\d+[.)])\s+/, "").trim();
+    if (!line || /^suggested questions/i.test(line)) continue;
+
+    let label = line;
+    let options: string[] = [];
+    const m = line.match(/^(.*?)\s*\(([^)]*\/[^)]*)\)\s*$/);
+    if (m) {
+      label = m[1].trim();
+      options = m[2].split("/").map((s) => s.trim()).filter(Boolean).slice(0, 25);
+    }
+    label = label.replace(/\s+/g, " ").slice(0, 120);
+    if (label.length < 4) continue;
+
+    const key = label.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+
+    out.push({ label, type: options.length >= 2 ? "SINGLE_CHOICE" : "LONG_TEXT", options });
+    if (out.length >= 15) break;
+  }
+  return out;
+}
+
 const MAX_ANSWER = 2000;
 
 /**

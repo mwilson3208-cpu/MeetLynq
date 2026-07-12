@@ -1,12 +1,4 @@
-import {
-  Users,
-  UserCheck,
-  Sparkles,
-  ExternalLink,
-  Check,
-  Lock,
-  Plus,
-} from "lucide-react";
+import { Users, UserCheck, ExternalLink, Check, Lock } from "lucide-react";
 import { getEventOr404, getEventStats } from "@/lib/queries";
 import { StatCard } from "@/components/ui/misc";
 import {
@@ -15,19 +7,20 @@ import {
   CardTitle,
   CardDescription,
   CardContent,
-  CardFooter,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Button, ButtonLink } from "@/components/ui/button";
+import { ButtonLink } from "@/components/ui/button";
 import { pct } from "@/lib/utils";
 import { generate } from "@/lib/ai";
 import { db } from "@/lib/db";
-import { parseOptions, type FieldDTO } from "@/lib/registration-fields";
+import { parseOptions, parseSuggestedQuestions, type FieldDTO } from "@/lib/registration-fields";
 import { SettingToggle } from "./setting-toggle";
 import { FieldBuilder } from "./field-builder";
 import {
   setRegistrationSetting,
   addRegistrationField,
+  addRegistrationFields,
+  updateRegistrationField,
   deleteRegistrationField,
   setFieldRequired,
   reorderRegistrationFields,
@@ -87,6 +80,7 @@ export default async function RegistrationSetup({
     required: r.required,
     options: parseOptions(r.options),
   }));
+  const suggestions = parseSuggestedQuestions(suggestion.output);
 
   return (
     <div className="space-y-6">
@@ -161,7 +155,10 @@ export default async function RegistrationSetup({
               <FieldBuilder
                 eventId={event.id}
                 initial={fields}
+                suggestions={suggestions}
                 addAction={addRegistrationField}
+                addManyAction={addRegistrationFields}
+                updateAction={updateRegistrationField}
                 deleteAction={deleteRegistrationField}
                 requiredAction={setFieldRequired}
                 reorderAction={reorderRegistrationFields}
@@ -191,26 +188,6 @@ export default async function RegistrationSetup({
         </Card>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Sparkles className="size-4 text-primary" /> AI suggested questions
-          </CardTitle>
-          <CardDescription>
-            Generated for {event.name}. Review and add the ones that fit.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <pre className="whitespace-pre-wrap rounded-lg border bg-secondary/40 p-4 text-sm leading-relaxed text-foreground">
-            {suggestion.output}
-          </pre>
-        </CardContent>
-        <CardFooter>
-          <Button variant="secondary" size="sm">
-            <Plus /> Add all suggestions
-          </Button>
-        </CardFooter>
-      </Card>
     </div>
   );
 }

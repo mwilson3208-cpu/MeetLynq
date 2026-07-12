@@ -7,6 +7,7 @@ import {
   normalizeOptions,
   fieldInputName,
   collectFieldAnswers,
+  parseSuggestedQuestions,
   type FieldDTO,
 } from "../src/lib/registration-fields";
 
@@ -62,6 +63,36 @@ describe("normalizeOptions", () => {
 describe("fieldInputName", () => {
   it("prefixes the field id", () => {
     assert.equal(fieldInputName("abc"), "custom_abc");
+  });
+});
+
+describe("parseSuggestedQuestions", () => {
+  const sample = `Suggested questions:
+• What is your primary goal for attending?
+• Which best describes your role? (Buyer / Seller / Investor)
+- What are you looking for at this event?
+1. What topics matter most to you?`;
+
+  it("skips the header and parses each bulleted line", () => {
+    const out = parseSuggestedQuestions(sample);
+    assert.equal(out.length, 4);
+    assert.equal(out[0].label, "What is your primary goal for attending?");
+  });
+  it("turns a parenthetical list into a single-choice field", () => {
+    const out = parseSuggestedQuestions(sample);
+    const role = out.find((o) => o.label.startsWith("Which best describes"))!;
+    assert.equal(role.type, "SINGLE_CHOICE");
+    assert.deepEqual(role.options, ["Buyer", "Seller", "Investor"]);
+  });
+  it("defaults open questions to long text with no options", () => {
+    const out = parseSuggestedQuestions(sample);
+    assert.equal(out[0].type, "LONG_TEXT");
+    assert.deepEqual(out[0].options, []);
+  });
+  it("de-dupes by label and handles empty input", () => {
+    assert.deepEqual(parseSuggestedQuestions(""), []);
+    const dup = parseSuggestedQuestions("• Same?\n• Same?");
+    assert.equal(dup.length, 1);
   });
 });
 

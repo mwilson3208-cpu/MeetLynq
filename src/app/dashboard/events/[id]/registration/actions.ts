@@ -102,6 +102,78 @@ export async function addRegistrationField(_prev: FieldActionState, fd: FormData
   return { ok: true, fields: await listFields(event.id) };
 }
 
+/** Bulk-add fields (e.g. accepting AI-suggested questions). Skips duplicates by label. */
+export async function addRegistrationFields(
+  eventId: string,
+  items: { label: string; type: string; options: string[] }[],
+): Promise<FieldActionState> {
+  const event = await getEventOr404(eventId);
+
+  let count = await db.registrationField.count({ where: { eventId: event.id } });
+  const existing = new Set(
+    (await db.registrationField.findMany({ where: { eventId: event.id }, select: { label: true } })).map((f) =>
+      f.label.toLowerCase(),
+    ),
+  );
+
+  const rows: { eventId: string; label: string; type: string; required: boolean; options: string | null; order: number }[] = [];
+  for (const it of items ?? []) {
+    if (count >= MAX_FIELDS) break;
+    const label = String(it?.label ?? "").trim().slice(0, MAX_LABEL);
+    if (!label || existing.has(label.toLowerCase())) continue;
+    const type = isFieldType(it?.type) ? it.type : "TEXT";
+    const options = isChoiceType(type)
+      ? (it.options ?? []).map((o) => String(o).trim()).filter(Boolean).slice(0, 25)
+      : null;
+    if (isChoiceType(type) && (!options || options.length < 2)) continue;
+    existing.add(label.toLowerCase());
+    rows.push({ eventId: event.id, label, type, required: false, options: options ? JSON.stringify(options) : null, order: count });
+    count++;
+  }
+
+  if (rows.length) {
+    try {
+      await db.registrationField.createMany({ data: rows });
+    } catch (err) {
+      console.error("[addRegistrationFields]", err);
+      return { error: "Couldn't add those fields. Please try again." };
+    }
+  }
+
+  revalidate(event.id, event.slug);
+  return { ok: true, fields: await listFields(event.id) };
+}
+
+/** Edit a custom field's label, required flag, and (for choice types) options. */
+export async function updateRegistrationField(_prev: FieldActionState, fd: FormData): Promise<FieldActionState> {
+  const event = await getEventOr404(String(fd.get("eventId") ?? ""));
+  const fieldId = String(fd.get("fieldId") ?? "");
+
+  const current = await db.registrationField.findFirst({ where: { id: fieldId, eventId: event.id } });
+  if (!current) return { error: "That field no longer exists." };
+
+  const label = String(fd.get("label") ?? "").trim().slice(0, MAX_LABEL);
+  if (!label) return { error: "Give the field a label." };
+  const required = String(fd.get("required") ?? "") === "true";
+
+  let options = current.options;
+  if (isChoiceType(current.type)) {
+    const norm = normalizeOptions(current.type, String(fd.get("options") ?? ""));
+    if (!norm || norm.length < 2) return { error: "Add at least two options for a choice field." };
+    options = JSON.stringify(norm);
+  }
+
+  try {
+    await db.registrationField.updateMany({ where: { id: fieldId, eventId: event.id }, data: { label, required, options } });
+  } catch (err) {
+    console.error("[updateRegistrationField]", err);
+    return { error: "Couldn't save that field. Please try again." };
+  }
+
+  revalidate(event.id, event.slug);
+  return { ok: true, fields: await listFields(event.id) };
+}
+
 /** Delete a custom registration field. */
 export async function deleteRegistrationField(_prev: FieldActionState, fd: FormData): Promise<FieldActionState> {
   const event = await getEventOr404(String(fd.get("eventId") ?? ""));
