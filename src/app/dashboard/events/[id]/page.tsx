@@ -44,10 +44,10 @@ export default async function EventOverview({ params }: { params: Promise<{ id: 
   return (
     <div className="space-y-6">
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard label="Registrations" value={stats.registrations} icon={<Users />} hint={event.capacity ? `${capacityFill}% of capacity` : undefined} />
-        <StatCard label="Checked in" value={stats.checkedIn} icon={<UserCheck />} tone="success" hint={`${checkInRate}% check-in rate`} />
-        <StatCard label="Meetings" value={stats.meetings} icon={<CalendarClock />} tone="info" />
-        <StatCard label="Revenue" value={formatMoney(stats.revenueCents)} icon={<DollarSign />} tone="warning" />
+        <StatCard label="Registrations" value={stats.registrations} icon={<Users />} hint={event.capacity ? `${capacityFill}% of capacity` : undefined} href={`/dashboard/events/${id}/attendees`} />
+        <StatCard label="Checked in" value={stats.checkedIn} icon={<UserCheck />} tone="success" hint={`${checkInRate}% check-in rate`} href={`/dashboard/events/${id}/check-in`} />
+        <StatCard label="Meetings" value={stats.meetings} icon={<CalendarClock />} tone="info" href={`/dashboard/events/${id}/meetings`} />
+        <StatCard label="Revenue" value={formatMoney(stats.revenueCents)} icon={<DollarSign />} tone="warning" href={`/dashboard/events/${id}/reports`} />
       </div>
 
       <div className="grid gap-6 lg:grid-cols-3">

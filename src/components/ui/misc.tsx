@@ -1,4 +1,5 @@
 import * as React from "react";
+import Link from "next/link";
 import { cn, initials } from "@/lib/utils";
 
 export function Avatar({
@@ -84,12 +85,15 @@ export function StatCard({
   hint,
   icon,
   tone = "primary",
+  href,
 }: {
   label: string;
   value: React.ReactNode;
   hint?: string;
   icon?: React.ReactNode;
   tone?: "primary" | "success" | "warning" | "info";
+  /** When set, the whole card becomes a link to this page. */
+  href?: string;
 }) {
   const tones: Record<string, string> = {
     primary: "bg-accent text-accent-foreground",
@@ -97,8 +101,8 @@ export function StatCard({
     warning: "bg-warning/15 text-warning-foreground",
     info: "bg-sky-100 text-sky-700",
   };
-  return (
-    <div className="rounded-xl border bg-card p-5 shadow-sm">
+  const body = (
+    <>
       <div className="flex items-center justify-between">
         <p className="text-sm font-medium text-muted-foreground">{label}</p>
         {icon && (
@@ -109,8 +113,20 @@ export function StatCard({
       </div>
       <p className="mt-2 text-3xl font-semibold tracking-tight">{value}</p>
       {hint && <p className="mt-1 text-xs text-muted-foreground">{hint}</p>}
-    </div>
+    </>
   );
+  if (href) {
+    return (
+      <Link
+        href={href}
+        aria-label={`${label} — open`}
+        className="block rounded-xl border bg-card p-5 shadow-sm transition-shadow hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+      >
+        {body}
+      </Link>
+    );
+  }
+  return <div className="rounded-xl border bg-card p-5 shadow-sm">{body}</div>;
 }
 
 export function PageHeader({
