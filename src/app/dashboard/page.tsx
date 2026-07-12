@@ -22,13 +22,12 @@ import { formatDate, formatMoney, pct } from "@/lib/utils";
 export default async function DashboardHome() {
   const { user, org } = await requireOrg();
 
-  const events = await db.event.findMany({
-    where: { organizationId: org.id },
-    orderBy: { createdAt: "desc" },
-    include: { _count: { select: { registrations: true, meetings: true } } },
-  });
-
-  const [totalReg, totalMeetings, revenue, upcoming] = await Promise.all([
+  const [events, totalReg, totalMeetings, revenue, upcoming] = await Promise.all([
+    db.event.findMany({
+      where: { organizationId: org.id },
+      orderBy: { createdAt: "desc" },
+      include: { _count: { select: { registrations: true, meetings: true } } },
+    }),
     db.registration.count({ where: { event: { organizationId: org.id }, status: { not: "CANCELED" } } }),
     db.meeting.count({ where: { event: { organizationId: org.id } } }),
     db.payment.aggregate({

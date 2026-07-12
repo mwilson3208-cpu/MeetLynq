@@ -91,13 +91,13 @@ export default async function EventBuilder({ params }: { params: Promise<{ id: s
   const { id } = await params;
   const event = await getEventOr404(id);
 
-  const pages = await db.eventPage.findMany({
-    where: { eventId: id },
-    include: { sections: { orderBy: { order: "asc" } } },
-    orderBy: { navOrder: "asc" },
-  });
-
-  const [ticketCount, questionCount] = await Promise.all([
+  // Independent reads — run them concurrently instead of stacking round-trips.
+  const [pages, ticketCount, questionCount] = await Promise.all([
+    db.eventPage.findMany({
+      where: { eventId: id },
+      include: { sections: { orderBy: { order: "asc" } } },
+      orderBy: { navOrder: "asc" },
+    }),
     db.ticket.count({ where: { eventId: id, isActive: true } }),
     db.registrationField.count({ where: { eventId: id } }),
   ]);

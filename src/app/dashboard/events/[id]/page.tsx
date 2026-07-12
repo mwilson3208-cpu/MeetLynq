@@ -21,13 +21,15 @@ import { REGISTRATION_STATUS } from "@/lib/constants";
 export default async function EventOverview({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const event = await getEventOr404(id);
-  const stats = await getEventStats(id);
-
-  const statusBreakdown = await db.registration.groupBy({
-    by: ["status"],
-    where: { eventId: id },
-    _count: true,
-  });
+  // Independent reads — run them concurrently instead of stacking round-trips.
+  const [stats, statusBreakdown] = await Promise.all([
+    getEventStats(id),
+    db.registration.groupBy({
+      by: ["status"],
+      where: { eventId: id },
+      _count: true,
+    }),
+  ]);
 
   const checkInRate = pct(stats.checkedIn, stats.registrations);
   const capacityFill = event.capacity ? pct(stats.registrations, event.capacity) : 0;

@@ -46,7 +46,12 @@ export const db =
   globalForPrisma.prisma ??
   new PrismaClient({
     ...(datasourceUrl ? { datasourceUrl } : {}),
-    log: process.env.NODE_ENV === "development" ? ["error", "warn"] : ["error"],
+    // PRISMA_LOG=query turns on per-query stdout logging (used to audit
+    // round-trip counts per request; each query is a network RTT in prod).
+    log: [
+      ...(process.env.PRISMA_LOG === "query" ? (["query"] as const) : []),
+      ...(process.env.NODE_ENV === "development" ? (["error", "warn"] as const) : (["error"] as const)),
+    ],
   });
 
 if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = db;

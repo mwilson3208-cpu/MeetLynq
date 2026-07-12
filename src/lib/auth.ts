@@ -1,4 +1,5 @@
 import { cookies } from "next/headers";
+import { cache as reactCache } from "react";
 import { createHash, createHmac, randomBytes, scryptSync, timingSafeEqual } from "crypto";
 import { db } from "./db";
 
@@ -91,7 +92,10 @@ export async function destroySession() {
   store.delete(COOKIE);
 }
 
-export async function getCurrentUser() {
+// React cache(): layouts, pages, and actions in the same request all call this,
+// so without deduplication a single click costs 2-3 identical user lookups —
+// each a full network round-trip to the database in production.
+export const getCurrentUser = reactCache(async () => {
   const store = await cookies();
   const userId = unsign(store.get(COOKIE)?.value);
   if (!userId) return null;
@@ -100,4 +104,4 @@ export async function getCurrentUser() {
     include: { memberships: { include: { organization: true } } },
   });
   return user;
-}
+});

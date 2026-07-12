@@ -65,14 +65,13 @@ export default async function RegistrationSetup({
 }) {
   const { id } = await params;
   const event = await getEventOr404(id);
-  const stats = await getEventStats(id);
-  const suggestion = await generate("registration_questions", { name: event.name });
+  // Independent reads — run them concurrently instead of stacking round-trips.
+  const [stats, suggestion, fieldRows] = await Promise.all([
+    getEventStats(id),
+    generate("registration_questions", { name: event.name }),
+    db.registrationField.findMany({ where: { eventId: event.id }, orderBy: { order: "asc" } }),
+  ]);
   const conversion = pct(stats.checkedIn, stats.registrations);
-
-  const fieldRows = await db.registrationField.findMany({
-    where: { eventId: event.id },
-    orderBy: { order: "asc" },
-  });
   const fields: FieldDTO[] = fieldRows.map((r) => ({
     id: r.id,
     label: r.label,
