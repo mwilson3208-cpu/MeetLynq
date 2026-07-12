@@ -27,6 +27,10 @@ export const EMAIL_TEMPLATES = {
     subject: `You're registered for ${event}`,
     text: `Hi ${name}, your spot at ${event} is confirmed. Your ticket and QR code are attached.`,
   }),
+  waitlistConfirmation: (name: string, event: string) => ({
+    subject: `You're on the waitlist for ${event}`,
+    text: `Hi ${name}, ${event} is currently at capacity, so we've added you to the waitlist. We'll email you if a spot opens up.`,
+  }),
   meetingReminder: (name: string, withWhom: string, time: string) => ({
     subject: `Reminder: your meeting with ${withWhom}`,
     text: `Hi ${name}, this is a reminder about your meeting with ${withWhom} at ${time}.`,

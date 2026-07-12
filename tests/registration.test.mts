@@ -6,14 +6,40 @@ import assert from "node:assert/strict";
 // `npm test` still works in environments without a database.
 const DB_URL = process.env.DATABASE_URL;
 
+// isAtCapacity is pure — test it unconditionally.
+const { isAtCapacity } = await import("../src/lib/registration");
+describe("isAtCapacity", () => {
+  it("is never at capacity when capacity is null/undefined (unlimited)", () => {
+    assert.equal(isAtCapacity(0, null), false);
+    assert.equal(isAtCapacity(9999, null), false);
+    assert.equal(isAtCapacity(9999, undefined), false);
+  });
+  it("is at capacity once active count reaches the cap", () => {
+    assert.equal(isAtCapacity(4, 5), false);
+    assert.equal(isAtCapacity(5, 5), true);
+    assert.equal(isAtCapacity(6, 5), true);
+  });
+  it("treats a zero capacity as immediately full", () => {
+    assert.equal(isAtCapacity(0, 0), true);
+  });
+});
+
 if (!DB_URL) {
   describe("registration (integration)", () => {
     it("skipped — DATABASE_URL not set", { skip: true }, () => {});
   });
 } else {
   const { db } = await import("../src/lib/db");
-  const { resolveCoupon, alreadyRegistered, registerFree, startPaidRegistration, finalizeOrder } =
-    await import("../src/lib/registration");
+  const {
+    resolveCoupon,
+    alreadyRegistered,
+    registerFree,
+    startPaidRegistration,
+    finalizeOrder,
+    countActiveRegistrations,
+    alreadyWaitlisted,
+    registerWaitlist,
+  } = await import("../src/lib/registration");
 
   const suffix = `test-${Date.now().toString(36)}`;
   let orgId: string;
@@ -220,6 +246,48 @@ if (!DB_URL) {
 
     it("finalizeOrder returns false for an unknown order", async () => {
       assert.equal(await finalizeOrder("does-not-exist"), false);
+    });
+  });
+
+  describe("waitlist", () => {
+    it("countActiveRegistrations counts CONFIRMED/CHECKED_IN/PENDING but not WAITLISTED/CANCELED", async () => {
+      const wlEvent = await db.event.create({
+        data: { organizationId: orgId, name: `WL ${suffix}`, slug: `wl-event-${suffix}`, status: "PUBLISHED" },
+      });
+      const mk = (email: string, status: string) =>
+        db.registration.create({ data: { eventId: wlEvent.id, email, firstName: "A", lastName: "B", status } });
+      await mk("c1@example.com", "CONFIRMED");
+      await mk("c2@example.com", "CHECKED_IN");
+      await mk("c3@example.com", "PENDING");
+      await mk("c4@example.com", "WAITLISTED");
+      await mk("c5@example.com", "CANCELED");
+      assert.equal(await countActiveRegistrations(wlEvent.id), 3);
+    });
+
+    it("registerWaitlist creates a WAITLISTED reg with no participant and no sold bump", async () => {
+      const wlTicket = await db.ticket.create({
+        data: { eventId, name: "WL Ticket", type: "FREE", priceCents: 0 },
+      });
+      const soldBefore = (await db.ticket.findUnique({ where: { id: wlTicket.id } }))!.sold;
+      const regId = await registerWaitlist({
+        eventId,
+        eventName: "Test Event",
+        ticketId: wlTicket.id,
+        firstName: "Wait",
+        lastName: "List",
+        email: "Waitlist.User@Example.com",
+      });
+      const reg = await db.registration.findUnique({ where: { id: regId }, include: { participant: true } });
+      assert.equal(reg?.status, "WAITLISTED");
+      assert.equal(reg?.email, "waitlist.user@example.com"); // lowercased
+      assert.equal(reg?.participant, null, "waitlisted registrations don't get a participant");
+      const soldAfter = (await db.ticket.findUnique({ where: { id: wlTicket.id } }))!.sold;
+      assert.equal(soldAfter, soldBefore, "waitlisting must not increment sold");
+    });
+
+    it("alreadyWaitlisted detects an existing waitlist entry, case-insensitively", async () => {
+      assert.equal(await alreadyWaitlisted(eventId, "nobody-wl@example.com"), false);
+      assert.equal(await alreadyWaitlisted(eventId, "WAITLIST.USER@EXAMPLE.COM"), true);
     });
   });
 }

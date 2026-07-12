@@ -4,9 +4,13 @@ import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import {
   registerFree,
+  registerWaitlist,
   startPaidRegistration,
   resolveCoupon,
   alreadyRegistered,
+  alreadyWaitlisted,
+  countActiveRegistrations,
+  isAtCapacity,
 } from "@/lib/registration";
 import { createCheckout, appUrl } from "@/lib/stripe";
 
@@ -43,6 +47,32 @@ export async function registerForEvent(_prev: RegisterState, formData: FormData)
   }
   if (await alreadyRegistered(event.id, email)) {
     return { error: "You're already registered for this event with that email." };
+  }
+
+  // Waitlist: when the organizer has enabled it and the event has reached its
+  // capacity, new sign-ups join the waitlist instead of registering — for both
+  // free and paid tickets (nobody is charged to wait).
+  if (event.waitlistEnabled && event.capacity != null) {
+    const activeCount = await countActiveRegistrations(event.id);
+    if (isAtCapacity(activeCount, event.capacity)) {
+      if (await alreadyWaitlisted(event.id, email)) {
+        return { error: "You're already on the waitlist for this event with that email." };
+      }
+      try {
+        await registerWaitlist({
+          eventId: event.id,
+          eventName: event.name,
+          ticketId: ticket.id,
+          firstName,
+          lastName,
+          email,
+        });
+      } catch (err) {
+        console.error("[register:waitlist]", err);
+        return { error: "We couldn't add you to the waitlist right now. Please try again in a moment." };
+      }
+      redirect(`/e/${slug}/registered?waitlist=1`);
+    }
   }
 
   // Approval is required when either the ticket or the event-level

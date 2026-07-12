@@ -41,6 +41,30 @@ export async function alreadyRegistered(eventId: string, email: string) {
   return Boolean(existing);
 }
 
+// Registrations that occupy a real spot for capacity purposes. WAITLISTED and
+// CANCELED deliberately don't count — they're beyond, or released from, the cap.
+const CAPACITY_STATUSES = ["CONFIRMED", "CHECKED_IN", "PENDING"];
+
+/** Count registrations that occupy a spot toward the event capacity. */
+export async function countActiveRegistrations(eventId: string): Promise<number> {
+  return db.registration.count({
+    where: { eventId, status: { in: CAPACITY_STATUSES } },
+  });
+}
+
+/** Pure capacity check. A null/undefined capacity means unlimited. */
+export function isAtCapacity(activeCount: number, capacity: number | null | undefined): boolean {
+  return capacity != null && activeCount >= capacity;
+}
+
+/** True if this email already holds a waitlist spot for the event (avoid dupes). */
+export async function alreadyWaitlisted(eventId: string, email: string): Promise<boolean> {
+  const existing = await db.registration.findFirst({
+    where: { eventId, email: email.toLowerCase(), status: "WAITLISTED" },
+  });
+  return Boolean(existing);
+}
+
 async function ensureParticipant(registrationId: string, eventId: string, name: string, email: string) {
   const existing = await db.participant.findUnique({ where: { registrationId } });
   if (existing) return;
@@ -86,6 +110,39 @@ export async function registerFree(args: {
   // Email delivery must never fail a registration — log and move on.
   await sendEmail({ to: args.email, subject: tpl.subject, text: tpl.text }).catch((err) =>
     console.error("[registerFree:email]", err)
+  );
+  return reg.id;
+}
+
+/**
+ * Add someone to the event waitlist. Creates a WAITLISTED registration that
+ * doesn't occupy a spot, doesn't create a participant, and doesn't bump the
+ * ticket's sold count. Returns the registration id.
+ */
+export async function registerWaitlist(args: {
+  eventId: string;
+  eventName: string;
+  ticketId: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  answers?: Record<string, string>;
+}) {
+  const reg = await db.registration.create({
+    data: {
+      eventId: args.eventId,
+      ticketId: args.ticketId,
+      email: args.email.toLowerCase(),
+      firstName: args.firstName,
+      lastName: args.lastName,
+      status: "WAITLISTED",
+      answers: JSON.stringify(args.answers ?? {}),
+    },
+  });
+  const tpl = EMAIL_TEMPLATES.waitlistConfirmation(args.firstName, args.eventName);
+  // A failed notification must never fail the waitlist sign-up.
+  await sendEmail({ to: args.email, subject: tpl.subject, text: tpl.text }).catch((err) =>
+    console.error("[registerWaitlist:email]", err)
   );
   return reg.id;
 }

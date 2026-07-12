@@ -16,7 +16,7 @@ export default async function RegisteredPage({
   searchParams,
 }: {
   params: Promise<{ slug: string }>;
-  searchParams: Promise<{ order?: string; free?: string; mock?: string; approval?: string }>;
+  searchParams: Promise<{ order?: string; free?: string; mock?: string; approval?: string; waitlist?: string }>;
 }) {
   const { slug } = await params;
   const sp = await searchParams;
@@ -24,8 +24,9 @@ export default async function RegisteredPage({
   const event = await db.event.findUnique({ where: { slug } });
   if (!event) notFound();
 
-  const awaitingApproval = sp.approval === "1";
-  const isFree = sp.free === "1" && !awaitingApproval;
+  const waitlisted = sp.waitlist === "1";
+  const awaitingApproval = sp.approval === "1" && !waitlisted;
+  const isFree = sp.free === "1" && !awaitingApproval && !waitlisted;
   let paid = false;
   let pending = false;
 
@@ -63,10 +64,18 @@ export default async function RegisteredPage({
             </div>
 
             <h1 className="mt-5 text-2xl font-bold tracking-tight">
-              {confirmed ? "You're registered!" : awaitingApproval ? "Request received!" : "Almost there…"}
+              {confirmed
+                ? "You're registered!"
+                : waitlisted
+                  ? "You're on the waitlist"
+                  : awaitingApproval
+                    ? "Request received!"
+                    : "Almost there…"}
             </h1>
             <p className="mx-auto mt-2 max-w-sm text-muted-foreground">
-              {awaitingApproval
+              {waitlisted
+                ? `${event.name} is currently at capacity, so we've added you to the waitlist. We'll email you as soon as a spot opens up.`
+                : awaitingApproval
                 ? `Your registration for ${event.name} is awaiting organizer approval. We'll email you as soon as it's confirmed.`
                 : isFree
                   ? `Your spot at ${event.name} is confirmed. We've emailed your ticket and event details.`
