@@ -1,4 +1,5 @@
 import Stripe from "stripe";
+import { headers } from "next/headers";
 
 // Payments layer. Uses real Stripe Checkout when STRIPE_SECRET_KEY is set;
 // otherwise runs in "mock" mode where checkout resolves immediately to the
@@ -17,8 +18,34 @@ export function getStripe(): Stripe | null {
   return stripe;
 }
 
-export function appUrl() {
-  return process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "") ?? "http://localhost:3000";
+/**
+ * Absolute origin for redirect/callback URLs (checkout success, cancel).
+ * Resolution order:
+ *   1. NEXT_PUBLIC_APP_URL — explicit override
+ *   2. The incoming request's own host — always matches the domain the
+ *      visitor is on (production domain or preview URL alike)
+ *   3. Vercel's project/deployment domains
+ *   4. localhost, for local dev outside a request
+ * The old localhost-only fallback sent production checkouts to
+ * http://localhost:3000 ("This site can't be reached").
+ */
+export async function appUrl(): Promise<string> {
+  const explicit = process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "");
+  if (explicit) return explicit;
+  try {
+    const h = await headers();
+    const host = h.get("x-forwarded-host") ?? h.get("host");
+    if (host) {
+      const isLocal = host.startsWith("localhost") || host.startsWith("127.");
+      const proto = h.get("x-forwarded-proto") ?? (isLocal ? "http" : "https");
+      return `${proto}://${host}`;
+    }
+  } catch {
+    // Outside a request scope — fall through to env-based resolution.
+  }
+  if (process.env.VERCEL_PROJECT_PRODUCTION_URL) return `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`;
+  if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL}`;
+  return "http://localhost:3000";
 }
 
 export interface CheckoutParams {

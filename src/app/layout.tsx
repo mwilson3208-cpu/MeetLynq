@@ -8,7 +8,12 @@ export const metadata: Metadata = {
   },
   description:
     "MeetLynq is the connection operating system for business events — build branded events, manage registration, schedule high-value meetings, support sponsors, and prove event ROI in one simple platform.",
-  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"),
+  metadataBase: new URL(
+    process.env.NEXT_PUBLIC_APP_URL ??
+      (process.env.VERCEL_PROJECT_PRODUCTION_URL
+        ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
+        : "http://localhost:3000"),
+  ),
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

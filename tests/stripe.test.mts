@@ -36,20 +36,39 @@ describe("stripe (mock mode — no STRIPE_SECRET_KEY)", () => {
 
 describe("appUrl", () => {
   const saved = process.env.NEXT_PUBLIC_APP_URL;
+  const savedProd = process.env.VERCEL_PROJECT_PRODUCTION_URL;
+  const savedVercel = process.env.VERCEL_URL;
   before(() => {
     delete process.env.NEXT_PUBLIC_APP_URL;
+    delete process.env.VERCEL_PROJECT_PRODUCTION_URL;
+    delete process.env.VERCEL_URL;
   });
   after(() => {
     if (saved === undefined) delete process.env.NEXT_PUBLIC_APP_URL;
     else process.env.NEXT_PUBLIC_APP_URL = saved;
+    if (savedProd === undefined) delete process.env.VERCEL_PROJECT_PRODUCTION_URL;
+    else process.env.VERCEL_PROJECT_PRODUCTION_URL = savedProd;
+    if (savedVercel === undefined) delete process.env.VERCEL_URL;
+    else process.env.VERCEL_URL = savedVercel;
   });
 
-  it("defaults to localhost", () => {
-    assert.equal(appUrl(), "http://localhost:3000");
+  // Outside a request scope headers() throws, so appUrl falls back to env.
+  it("defaults to localhost with no env and no request", async () => {
+    assert.equal(await appUrl(), "http://localhost:3000");
   });
-  it("strips a trailing slash", () => {
+  it("strips a trailing slash from the explicit env", async () => {
     process.env.NEXT_PUBLIC_APP_URL = "https://meetlynq.example/";
-    assert.equal(appUrl(), "https://meetlynq.example");
+    assert.equal(await appUrl(), "https://meetlynq.example");
     delete process.env.NEXT_PUBLIC_APP_URL;
+  });
+  it("uses the Vercel production domain when set", async () => {
+    process.env.VERCEL_PROJECT_PRODUCTION_URL = "meetlynk.app";
+    assert.equal(await appUrl(), "https://meetlynk.app");
+    delete process.env.VERCEL_PROJECT_PRODUCTION_URL;
+  });
+  it("falls back to the deployment URL", async () => {
+    process.env.VERCEL_URL = "meet-lynq-abc123.vercel.app";
+    assert.equal(await appUrl(), "https://meet-lynq-abc123.vercel.app");
+    delete process.env.VERCEL_URL;
   });
 });

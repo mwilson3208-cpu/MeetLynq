@@ -132,8 +132,9 @@ export async function registerForEvent(_prev: RegisterState, formData: FormData)
       answers,
     });
 
-    const successUrl = `${appUrl()}/e/${slug}/registered?order=${orderId}`;
-    const cancelUrl = `${appUrl()}/e/${slug}?canceled=1#register`;
+    const base = await appUrl();
+    const successUrl = `${base}/e/${slug}/registered?order=${orderId}`;
+    const cancelUrl = `${base}/e/${slug}?canceled=1#register`;
     checkoutUrl = await createCheckout({
       orderId,
       email,
