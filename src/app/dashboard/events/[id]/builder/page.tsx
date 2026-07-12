@@ -105,7 +105,7 @@ export default async function EventBuilder({ params }: { params: Promise<{ id: s
   // Eventbrite-style setup checklist, computed from the data the public page
   // actually renders.
   const isLive = event.status === "PUBLISHED" || event.status === "LIVE";
-  const checklist = [
+  const checklist: { label: string; hint: string; done: boolean; href: string | null; publish?: boolean }[] = [
     {
       label: "Add a tagline",
       hint: "One line under your title that sells the event.",
@@ -138,9 +138,10 @@ export default async function EventBuilder({ params }: { params: Promise<{ id: s
     },
     {
       label: "Publish your event",
-      hint: "Opens registration on your public page.",
+      hint: "One click — opens registration on your public page.",
       done: isLive,
       href: null,
+      publish: true,
     },
   ];
   const doneCount = checklist.filter((c) => c.done).length;
@@ -400,6 +401,20 @@ export default async function EventBuilder({ params }: { params: Promise<{ id: s
                     </span>
                   </>
                 );
+                if (item.publish && !item.done) {
+                  return (
+                    <form key={item.label} action={setEventStatus}>
+                      <input type="hidden" name="eventId" value={event.id} />
+                      <input type="hidden" name="status" value="PUBLISHED" />
+                      <button
+                        type="submit"
+                        className="flex w-full items-start gap-2.5 rounded-lg p-2 text-left hover:bg-secondary/60"
+                      >
+                        {inner}
+                      </button>
+                    </form>
+                  );
+                }
                 return item.href && !item.done ? (
                   <Link key={item.label} href={item.href} className="flex items-start gap-2.5 rounded-lg p-2 hover:bg-secondary/60">
                     {inner}
