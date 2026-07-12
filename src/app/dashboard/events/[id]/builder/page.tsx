@@ -23,7 +23,9 @@ import {
   movePage,
   deletePage,
   publishAllPages,
+  updateBrandColor,
 } from "./actions";
+import { BrandColorPicker } from "./brand-color";
 
 const SECTION_TYPES = ["hero", "richtext", "speakers", "sponsors", "agenda", "tickets", "marketplace", "cta", "gallery", "faq"];
 
@@ -244,13 +246,7 @@ export default async function EventBuilder({ params }: { params: Promise<{ id: s
               <CardTitle className="text-base">Brand</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="flex items-center gap-3">
-                <span className="size-10 shrink-0 rounded-lg border" style={{ backgroundColor: event.brandColor }} />
-                <div>
-                  <p className="text-sm font-medium">Brand color</p>
-                  <p className="text-xs text-muted-foreground">{event.brandColor}</p>
-                </div>
-              </div>
+              <BrandColorPicker eventId={event.id} initial={event.brandColor} action={updateBrandColor} />
               <Separator />
               <div>
                 <p className="mb-2 text-sm font-medium">Cover image</p>
@@ -263,7 +259,7 @@ export default async function EventBuilder({ params }: { params: Promise<{ id: s
                 />
               </div>
               <p className="text-xs text-muted-foreground">
-                Brand color, SEO, and event details are managed under{" "}
+                SEO and event details are managed under{" "}
                 <span className="font-medium text-foreground">Settings</span>.
               </p>
             </CardContent>

@@ -25,6 +25,28 @@ async function sectionOfEvent(eventId: string, sectionId: string) {
   return db.eventSection.findFirst({ where: { id: sectionId, page: { eventId } } });
 }
 
+// --- Branding ----------------------------------------------------------------
+
+const HEX_RE = /^#[0-9a-fA-F]{6}$/;
+
+/** Update the event's brand color from the Builder's Brand card. */
+export async function updateBrandColor(_prev: State | null, fd: FormData): Promise<State> {
+  const event = await getEventOr404(str(fd, "eventId"));
+  const brandColor = str(fd, "brandColor").toLowerCase();
+  if (!HEX_RE.test(brandColor)) return { error: "Pick a valid color." };
+
+  try {
+    await db.event.update({ where: { id: event.id }, data: { brandColor } });
+  } catch (err) {
+    console.error("[updateBrandColor]", err);
+    return { error: "Couldn't save the color. Please try again." };
+  }
+
+  revalidatePath(`/dashboard/events/${event.id}`, "layout");
+  revalidatePath(`/e/${event.slug}`);
+  return { ok: true };
+}
+
 // --- Sections --------------------------------------------------------------
 
 export async function createSection(_prev: State | null, fd: FormData): Promise<State> {
