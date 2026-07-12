@@ -36,3 +36,7 @@ yarn-error.log*
 .vscode/*
 !.vscode/extensions.json
 .idea
+
+# local verification artifacts
+.verify-*
+.next-dev.log
