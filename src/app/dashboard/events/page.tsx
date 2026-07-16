@@ -11,10 +11,30 @@ import { Button, ButtonLink } from "@/components/ui/button";
 import { EVENT_STATUS, EVENT_TYPES, EVENT_FORMATS, labelOf } from "@/lib/constants";
 import { formatDate } from "@/lib/utils";
 
-export default async function EventsPage() {
+// Status filter chips. "Ended" groups ENDED with ARCHIVED so wrapped-up
+// events don't disappear from every filter.
+const FILTERS: { label: string; key: string; statuses: string[] | null }[] = [
+  { label: "All", key: "all", statuses: null },
+  { label: "Draft", key: "draft", statuses: ["DRAFT"] },
+  { label: "Published", key: "published", statuses: ["PUBLISHED"] },
+  { label: "Live", key: "live", statuses: ["LIVE"] },
+  { label: "Ended", key: "ended", statuses: ["ENDED", "ARCHIVED"] },
+];
+
+export default async function EventsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ status?: string }>;
+}) {
   const { org } = await requireOrg();
+  const sp = await searchParams;
+  const active = FILTERS.find((f) => f.key === sp.status) ?? FILTERS[0];
+
   const events = await db.event.findMany({
-    where: { organizationId: org.id },
+    where: {
+      organizationId: org.id,
+      ...(active.statuses ? { status: { in: active.statuses } } : {}),
+    },
     orderBy: { createdAt: "desc" },
     include: { _count: { select: { registrations: true, sessions: true, sponsors: true } } },
   });
@@ -32,18 +52,27 @@ export default async function EventsPage() {
       />
 
       <div className="mb-5 flex flex-wrap items-center gap-2">
-        {["All", "Draft", "Published", "Live", "Ended"].map((f, i) => (
-          <Button key={f} variant={i === 0 ? "secondary" : "ghost"} size="sm">
-            {f}
-          </Button>
+        {FILTERS.map((f) => (
+          <ButtonLink
+            key={f.key}
+            href={f.key === "all" ? "/dashboard/events" : `/dashboard/events?status=${f.key}`}
+            variant={f.key === active.key ? "secondary" : "ghost"}
+            size="sm"
+          >
+            {f.label}
+          </ButtonLink>
         ))}
       </div>
 
       {events.length === 0 ? (
         <EmptyState
           icon={<CalendarDays />}
-          title="No events yet"
-          description="Your events will appear here. Create your first one to get started."
+          title={active.statuses ? `No ${active.label.toLowerCase()} events` : "No events yet"}
+          description={
+            active.statuses
+              ? "Nothing matches this filter — try another status."
+              : "Your events will appear here. Create your first one to get started."
+          }
           action={<ButtonLink href="/dashboard/events/new"><Plus className="size-4" /> Create event</ButtonLink>}
         />
       ) : (

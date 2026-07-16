@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useEffect, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -82,6 +82,15 @@ export function RegistrationForm({
   const [state, formAction] = useActionState(withActionErrorFallback(action), null);
   const hasPaid = tickets.some((t) => (t.earlyBird && t.earlyBirdPriceCents ? t.earlyBirdPriceCents : t.priceCents) > 0);
 
+  // Ticket choice is controlled so the "Select" buttons on the ticket cards
+  // (links carrying ?ticket=<id>) can preselect it. Read client-side only, so
+  // the statically cached page never depends on searchParams.
+  const [ticketId, setTicketId] = useState(tickets[0]?.id ?? "");
+  useEffect(() => {
+    const fromUrl = new URLSearchParams(window.location.search).get("ticket");
+    if (fromUrl && tickets.some((t) => t.id === fromUrl)) setTicketId(fromUrl);
+  }, [tickets]);
+
   if (tickets.length === 0) {
     return <p className="text-sm text-muted-foreground">Tickets are not yet available for this event.</p>;
   }
@@ -101,7 +110,7 @@ export function RegistrationForm({
         <Input type="email" placeholder="you@company.com" name="email" required />
       </Field>
       <Field label="Ticket">
-        <Select name="ticketId" defaultValue={tickets[0]?.id} required>
+        <Select name="ticketId" value={ticketId} onChange={(e) => setTicketId(e.target.value)} required>
           {tickets.map((t) => (
             <option key={t.id} value={t.id}>
               {t.name} — {priceOf(t)}

@@ -22,7 +22,7 @@ import { formatDate, formatMoney, pct } from "@/lib/utils";
 export default async function DashboardHome() {
   const { user, org } = await requireOrg();
 
-  const [events, totalReg, totalMeetings, revenue, upcoming] = await Promise.all([
+  const [events, totalReg, totalMeetings, revenue, upcoming, ticketCount, memberCount] = await Promise.all([
     db.event.findMany({
       where: { organizationId: org.id },
       orderBy: { createdAt: "desc" },
@@ -38,7 +38,30 @@ export default async function DashboardHome() {
       where: { organizationId: org.id, status: { in: ["PUBLISHED", "LIVE"] } },
       orderBy: { startsAt: "asc" },
     }),
+    db.ticket.count({ where: { event: { organizationId: org.id }, isActive: true } }),
+    db.organizationMember.count({ where: { organizationId: org.id } }),
   ]);
+
+  // Launch checklist computed from real workspace data (was hardcoded).
+  const launchChecklist: { label: string; done: boolean; href: string }[] = [
+    { label: "Create your event", done: events.length > 0, href: "/dashboard/events/new" },
+    {
+      label: "Build a branded page",
+      done: events.some((e) => Boolean(e.tagline) || Boolean(e.description)),
+      href: events[0] ? `/dashboard/events/${events[0].id}/builder` : "/dashboard/events/new",
+    },
+    {
+      label: "Set up tickets",
+      done: ticketCount > 0,
+      href: events[0] ? `/dashboard/events/${events[0].id}/tickets` : "/dashboard/events/new",
+    },
+    { label: "Invite your team", done: memberCount > 1, href: "/dashboard/team" },
+    {
+      label: "Publish & promote",
+      done: Boolean(upcoming),
+      href: events[0] ? `/dashboard/events/${events[0].id}/builder` : "/dashboard/events/new",
+    },
+  ];
 
   return (
     <div>
@@ -158,21 +181,26 @@ export default async function DashboardHome() {
             <CardHeader>
               <CardTitle>Launch checklist</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-2.5">
-              {[
-                ["Create your event", true],
-                ["Build a branded page", true],
-                ["Set up tickets", true],
-                ["Invite your team", false],
-                ["Publish & promote", false],
-              ].map(([label, done]) => (
-                <div key={label as string} className="flex items-center gap-2.5 text-sm">
-                  <span className={`flex size-4 items-center justify-center rounded-full text-[10px] ${done ? "bg-success text-success-foreground" : "border"}`}>
-                    {done ? "✓" : ""}
-                  </span>
-                  <span className={done ? "text-muted-foreground line-through" : ""}>{label as string}</span>
-                </div>
-              ))}
+            <CardContent className="space-y-1">
+              {launchChecklist.map((item) =>
+                item.done ? (
+                  <div key={item.label} className="flex items-center gap-2.5 rounded-md p-1.5 text-sm">
+                    <span className="flex size-4 items-center justify-center rounded-full bg-success text-[10px] text-success-foreground">
+                      ✓
+                    </span>
+                    <span className="text-muted-foreground line-through">{item.label}</span>
+                  </div>
+                ) : (
+                  <Link
+                    key={item.label}
+                    href={item.href}
+                    className="flex items-center gap-2.5 rounded-md p-1.5 text-sm hover:bg-secondary/60"
+                  >
+                    <span className="flex size-4 items-center justify-center rounded-full border text-[10px]" />
+                    {item.label}
+                  </Link>
+                ),
+              )}
             </CardContent>
           </Card>
 

@@ -29,7 +29,6 @@ import {
 } from "@/lib/constants";
 import { LogoMark } from "@/components/brand/logo";
 import { ButtonLink } from "@/components/ui/button";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Avatar } from "@/components/ui/misc";
@@ -380,9 +379,15 @@ export default async function PublicEventPage({
                           : "Free"}
                       </p>
                     </div>
-                    <Button variant="outline" size="sm" className="shrink-0">
+                    <ButtonLink
+                      href={`?ticket=${ticket.id}#register`}
+                      variant="outline"
+                      size="sm"
+                      className="shrink-0"
+                      aria-label={`Select ${ticket.name}`}
+                    >
                       Select
-                    </Button>
+                    </ButtonLink>
                   </CardContent>
                 </Card>
               ))}
