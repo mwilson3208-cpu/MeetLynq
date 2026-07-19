@@ -48,11 +48,11 @@ export default async function AdminPage() {
       />
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
-        <StatCard label="Users" value={userCount} icon={<Users />} />
-        <StatCard label="Workspaces" value={orgCount} icon={<Building2 />} tone="info" />
-        <StatCard label="Events" value={eventCount} icon={<CalendarDays />} tone="primary" />
-        <StatCard label="Registrations" value={regCount} icon={<UserPlus />} tone="success" />
-        <StatCard label="Revenue" value={formatMoney(revenue._sum.amountCents ?? 0)} icon={<DollarSign />} tone="warning" />
+        <StatCard label="Users" value={userCount} icon={<Users />} href="/dashboard/admin/users" />
+        <StatCard label="Workspaces" value={orgCount} icon={<Building2 />} tone="info" href="/dashboard/admin/workspaces" />
+        <StatCard label="Events" value={eventCount} icon={<CalendarDays />} tone="primary" href="/dashboard/admin/events" />
+        <StatCard label="Registrations" value={regCount} icon={<UserPlus />} tone="success" href="/dashboard/admin/registrations" />
+        <StatCard label="Revenue" value={formatMoney(revenue._sum.amountCents ?? 0)} icon={<DollarSign />} tone="warning" href="/dashboard/admin/revenue" />
       </div>
 
       <div className="mt-8 grid gap-6 lg:grid-cols-3">
