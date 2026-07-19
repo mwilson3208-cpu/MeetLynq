@@ -30,8 +30,12 @@ export function getStripe(): Stripe | null {
  * http://localhost:3000 ("This site can't be reached").
  */
 export async function appUrl(): Promise<string> {
-  const explicit = process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "");
-  if (explicit) return explicit;
+  let explicit = process.env.NEXT_PUBLIC_APP_URL?.trim().replace(/\/$/, "");
+  if (explicit) {
+    // Repair a schemeless value ("meetlynk.app") instead of emitting invalid URLs.
+    if (!/^https?:\/\//i.test(explicit)) explicit = `https://${explicit}`;
+    return explicit;
+  }
   try {
     const h = await headers();
     const host = h.get("x-forwarded-host") ?? h.get("host");
