@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { CalendarDays, Users, Building2, DollarSign, ScrollText, ShieldCheck, UserPlus } from "lucide-react";
 import { requireAdmin } from "@/lib/admin";
 import { db } from "@/lib/db";
@@ -106,7 +107,12 @@ export default async function AdminPage() {
               <div key={u.id} className="flex items-center gap-3">
                 <Avatar name={u.name} size={34} />
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-medium">{u.name}</p>
+                  <Link
+                    href={`/dashboard/admin/users/${u.id}`}
+                    className="block truncate text-sm font-medium hover:text-primary hover:underline"
+                  >
+                    {u.name}
+                  </Link>
                   <p className="truncate text-xs text-muted-foreground">{u.email}</p>
                 </div>
                 <div className="shrink-0 text-right">

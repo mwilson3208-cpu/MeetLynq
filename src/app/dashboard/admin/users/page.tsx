@@ -50,7 +50,14 @@ export default async function AdminUsersPage() {
                 <TBody>
                   {users.map((u) => (
                     <TR key={u.id}>
-                      <TD className="font-medium">{u.name}</TD>
+                      <TD>
+                        <Link
+                          href={`/dashboard/admin/users/${u.id}`}
+                          className="font-medium text-primary hover:underline"
+                        >
+                          {u.name}
+                        </Link>
+                      </TD>
                       <TD className="text-muted-foreground">{u.email}</TD>
                       <TD>
                         {u.role === "PLATFORM_ADMIN" ? (
