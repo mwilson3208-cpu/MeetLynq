@@ -47,7 +47,7 @@ export default async function AdminPage() {
       </div>
 
       <div className="mt-8 grid gap-6 lg:grid-cols-3">
-        <Card className="lg:col-span-2">
+        <Card className="min-w-0 lg:col-span-2">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <ScrollText className="size-4 text-primary" /> Audit logs

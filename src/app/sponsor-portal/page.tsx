@@ -49,7 +49,7 @@ export default async function SponsorPortal() {
       </div>
 
       <div className="mt-6 grid gap-6 lg:grid-cols-3">
-        <Card className="lg:col-span-2">
+        <Card className="min-w-0 lg:col-span-2">
           <CardHeader>
             <CardTitle>Lead pipeline</CardTitle>
             <CardDescription>Leads captured at your booth and via QR scans.</CardDescription>

@@ -226,15 +226,23 @@ if (!run) {
         },
       });
 
-      await page.goto(`${BASE}/dashboard/events/${eventId}/matchmaking`, { waitUntil: "networkidle" });
+      // "load" + an explicit wait for the action button: networkidle is flaky
+      // under CPU contention (router prefetches), while button visibility is a
+      // stronger, functional readiness signal for what this test exercises.
+      await page.goto(`${BASE}/dashboard/events/${eventId}/matchmaking`, { waitUntil: "load" });
       await hydrate(page, 2500);
-      await page.getByRole("button", { name: /run matchmaking/i }).first().click();
+      const runBtn = page.getByRole("button", { name: /run matchmaking/i }).first();
+      await runBtn.waitFor({ state: "visible", timeout: 20000 });
+      await runBtn.click();
       await page.waitForTimeout(6000);
 
       const matches = await db.matchScore.count({ where: { eventId } });
       assert.ok(matches > 0, `expected MatchScore rows, got ${matches}`);
 
-      await page.goto(`${BASE}/dashboard/events/${eventId}/matchmaking`, { waitUntil: "networkidle" });
+      await page.goto(`${BASE}/dashboard/events/${eventId}/matchmaking`, { waitUntil: "load" });
+      // Waiting for the content itself is the real assertion — and a sturdier
+      // signal than networkidle, which flakes under prefetch/CPU contention.
+      await page.locator("text=Match score").first().waitFor({ state: "visible", timeout: 20000 });
       assert.ok((await page.locator("text=Match score").count()) > 0, "matches render on the page");
     });
   });

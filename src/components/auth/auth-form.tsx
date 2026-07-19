@@ -23,10 +23,10 @@ export function LoginForm({ action, demoAction }: { action: Action; demoAction: 
     <div className="space-y-4">
       <form action={formAction} className="space-y-4">
         <Field label="Work email">
-          <Input name="email" type="email" placeholder="you@company.com" required defaultValue="organizer@meetlynq.com" />
+          <Input name="email" type="email" placeholder="you@company.com" required autoComplete="email" />
         </Field>
         <Field label="Password">
-          <Input name="password" type="password" placeholder="••••••••" required defaultValue="password123" />
+          <Input name="password" type="password" placeholder="••••••••" required autoComplete="current-password" />
         </Field>
         {state?.error && <p className="text-sm text-destructive">{state.error}</p>}
         <Submit label="Sign in" />

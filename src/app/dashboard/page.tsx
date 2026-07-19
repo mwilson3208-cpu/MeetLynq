@@ -83,7 +83,7 @@ export default async function DashboardHome() {
       </div>
 
       <div className="mt-8 grid gap-6 lg:grid-cols-3">
-        <div className="lg:col-span-2">
+        <div className="min-w-0 lg:col-span-2">
           <div className="mb-3 flex items-center justify-between">
             <h2 className="text-lg font-semibold">Your events</h2>
             <Link href="/dashboard/events" className="text-sm font-medium text-primary hover:underline">
@@ -109,9 +109,12 @@ export default async function DashboardHome() {
                           <CalendarDays className="size-5" />
                         </div>
                         <div className="min-w-0 flex-1">
-                          <div className="flex items-center gap-2">
-                            <p className="truncate font-semibold">{e.name}</p>
-                            <Badge tone={status.tone}>{status.label}</Badge>
+                          <div className="flex min-w-0 items-center gap-2">
+                            {/* min-w-0: without it this flex item's minimum is the
+                                full text width, which forces horizontal overflow
+                                on narrow screens. */}
+                            <p className="min-w-0 truncate font-semibold">{e.name}</p>
+                            <Badge tone={status.tone} className="shrink-0">{status.label}</Badge>
                           </div>
                           <p className="mt-0.5 truncate text-sm text-muted-foreground">
                             {labelOf(EVENT_TYPES, e.type)} · {formatDate(e.startsAt)} · {e.city ?? "—"}

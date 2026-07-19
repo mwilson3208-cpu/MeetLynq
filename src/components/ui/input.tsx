@@ -60,10 +60,20 @@ export function Field({
   children: React.ReactNode;
   className?: string;
 }) {
+  // Associate the label with the control programmatically: screen readers
+  // otherwise announce bare inputs. When the child is a single element we give
+  // it a stable id (preserving any explicit one) and point the label at it.
+  const generatedId = React.useId();
+  let controlId: string | undefined;
+  let child = children;
+  if (React.isValidElement<{ id?: string }>(children)) {
+    controlId = children.props.id ?? generatedId;
+    child = React.cloneElement(children, { id: controlId });
+  }
   return (
     <div className={cn("flex flex-col gap-1.5", className)}>
-      {label && <Label>{label}</Label>}
-      {children}
+      {label && <Label htmlFor={controlId}>{label}</Label>}
+      {child}
       {hint && <p className="text-xs text-muted-foreground">{hint}</p>}
     </div>
   );
