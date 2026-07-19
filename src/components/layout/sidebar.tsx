@@ -27,10 +27,12 @@ const settingsNav = [
   { href: "/dashboard/team", label: "Team & roles", icon: ShieldCheck },
   { href: "/dashboard/integrations", label: "Integrations", icon: Plug },
   { href: "/dashboard/billing", label: "Billing", icon: CreditCard },
-  { href: "/dashboard/admin", label: "Admin", icon: Settings },
 ];
 
-export function Sidebar() {
+// Only rendered for platform admins (the layout decides).
+const adminNav = { href: "/dashboard/admin", label: "Admin", icon: Settings };
+
+export function Sidebar({ isAdmin = false }: { isAdmin?: boolean }) {
   const pathname = usePathname();
   const isActive = (href: string, exact?: boolean) =>
     exact ? pathname === href : pathname === href || pathname.startsWith(href + "/");
@@ -50,6 +52,7 @@ export function Sidebar() {
         {settingsNav.map((item) => (
           <NavItem key={item.href} {...item} active={isActive(item.href)} />
         ))}
+        {isAdmin && <NavItem {...adminNav} active={isActive(adminNav.href)} />}
         <div className="mt-auto rounded-xl bg-accent p-4">
           <div className="flex items-center gap-2 text-sm font-semibold text-accent-foreground">
             <Megaphone className="size-4" /> Launch faster

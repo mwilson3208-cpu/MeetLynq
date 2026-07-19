@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
 import { Sidebar } from "@/components/layout/sidebar";
+import { isAdminUser } from "@/lib/admin";
 import { Topbar } from "@/components/layout/topbar";
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -10,7 +11,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
 
   return (
     <div className="flex min-h-screen bg-background">
-      <Sidebar />
+      <Sidebar isAdmin={isAdminUser(user)} />
       <div className="flex min-w-0 flex-1 flex-col">
         <Topbar userName={user.name} orgName={orgName} />
         <main className="flex-1 px-4 py-6 lg:px-8 lg:py-8">

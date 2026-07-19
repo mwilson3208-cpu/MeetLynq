@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import { createSession, destroySession, verifyPassword, hashPassword } from "@/lib/auth";
+import { isAdminEmail } from "@/lib/admin";
 import { slugify } from "@/lib/utils";
 
 export async function login(_prev: unknown, formData: FormData) {
@@ -60,7 +61,8 @@ export async function signup(_prev: unknown, formData: FormData) {
         name,
         email,
         passwordHash: hashPassword(password),
-        role: "ORGANIZER",
+        // Allowlisted platform-owner emails get admin access from signup.
+        role: isAdminEmail(email) ? "PLATFORM_ADMIN" : "ORGANIZER",
         memberships: {
           create: {
             role: "OWNER",

@@ -101,6 +101,40 @@ if (!up) {
     });
   });
 
+  describe("A2. Platform admin access control", () => {
+    it("hides the admin page and nav from ordinary organizers", async () => {
+      const c = await browser.newContext();
+      const p = await login(c, "organizer@meetlynq.com", "password123");
+      assert.equal(await p.locator('a[href="/dashboard/admin"]').count(), 0, "Admin nav link hidden");
+      const res = await p.goto(`${BASE}/dashboard/admin`, { waitUntil: "load" });
+      assert.equal(res?.status(), 404, "direct navigation returns 404");
+      await c.close();
+    });
+
+    it("grants a PLATFORM_ADMIN user the platform dashboard", async () => {
+      // Promote a dedicated admin fixture (deterministic per run).
+      const email = `${uniq("gate-admin")}@example.com`.toLowerCase();
+      const { hashPassword } = await import("../src/lib/auth");
+      await db.user.create({
+        data: { email, name: "Gate Admin", passwordHash: hashPassword("password123"), role: "PLATFORM_ADMIN" },
+      });
+      const c = await browser.newContext();
+      const p = await c.newPage();
+      await p.goto(`${BASE}/login`, { waitUntil: "load" });
+      await p.waitForTimeout(1500);
+      await p.fill('input[name="email"]', email);
+      await p.fill('input[name="password"]', "password123");
+      await p.click('button[type="submit"]');
+      await p.waitForTimeout(2000);
+      const res = await p.goto(`${BASE}/dashboard/admin`, { waitUntil: "load" });
+      assert.equal(res?.status(), 200, "admin page loads for PLATFORM_ADMIN");
+      assert.ok((await p.locator("text=Platform admin").count()) > 0, "platform dashboard renders");
+      assert.ok((await p.locator("text=Workspaces").count()) > 0, "workspace table present");
+      await db.user.delete({ where: { email } }).catch(() => {});
+      await c.close();
+    });
+  });
+
   describe("B. Public registration form validation", () => {
     it("blocks submission with an invalid email and preserves input", async () => {
       await page.goto(`${BASE}/e/${eventSlug}`, { waitUntil: "load" });
