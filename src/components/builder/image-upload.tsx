@@ -1,9 +1,10 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { ImageIcon, UploadCloud, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { MAX_UPLOAD_BYTES, MAX_UPLOAD_LABEL } from "@/lib/upload-limits";
 
 type UploadState = { url?: string; error?: string } | null;
 type Action = (prev: UploadState, fd: FormData) => Promise<UploadState>;
@@ -36,7 +37,20 @@ export function ImageUpload({
   configured: boolean;
 }) {
   const [state, formAction] = useActionState(action, null);
+  const [sizeError, setSizeError] = useState<string | null>(null);
   const preview = state?.url ?? currentUrl ?? null;
+
+  // Oversized files would be rejected at the request layer before the server
+  // action runs (and crash the page with an opaque error), so stop them here
+  // with a clear message instead.
+  const checkSize = (file: File | undefined | null) => {
+    if (file && file.size > MAX_UPLOAD_BYTES) {
+      setSizeError(`That image is ${(file.size / (1024 * 1024)).toFixed(1)} MB — the maximum is ${MAX_UPLOAD_LABEL}. Try compressing it or exporting a smaller version.`);
+      return false;
+    }
+    setSizeError(null);
+    return true;
+  };
 
   return (
     <div className="space-y-3">
@@ -53,13 +67,21 @@ export function ImageUpload({
       </div>
 
       {configured ? (
-        <form action={formAction} className="flex items-center gap-2">
+        <form
+          action={formAction}
+          onSubmit={(e) => {
+            const input = e.currentTarget.elements.namedItem("file") as HTMLInputElement | null;
+            if (!checkSize(input?.files?.[0])) e.preventDefault();
+          }}
+          className="flex items-center gap-2"
+        >
           <input type="hidden" name="eventId" value={eventId} />
           <input
             type="file"
             name="file"
             accept="image/png,image/jpeg,image/webp,image/gif,image/svg+xml"
             required
+            onChange={(e) => checkSize(e.currentTarget.files?.[0])}
             className="block w-full text-xs text-muted-foreground file:mr-3 file:rounded-md file:border-0 file:bg-secondary file:px-3 file:py-1.5 file:text-xs file:font-medium hover:file:bg-secondary/80"
           />
           <SubmitButton />
@@ -70,7 +92,8 @@ export function ImageUpload({
         </p>
       )}
 
-      {state?.error && <p className="text-xs text-destructive">{state.error}</p>}
+      {sizeError && <p className="text-xs text-destructive">{sizeError}</p>}
+      {!sizeError && state?.error && <p className="text-xs text-destructive">{state.error}</p>}
       {state?.url && (
         <p className="flex items-center gap-1.5 text-xs text-success">
           <Check className="size-3.5" /> Uploaded and saved.

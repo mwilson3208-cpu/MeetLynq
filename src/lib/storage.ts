@@ -1,4 +1,5 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import { MAX_UPLOAD_BYTES, MAX_UPLOAD_LABEL } from "./upload-limits";
 
 // Supabase Storage layer for logos, cover images, badges, and speaker resources.
 // Reads the credentials injected by the Vercel ↔ Supabase integration (or set
@@ -31,7 +32,6 @@ function getClient(): SupabaseClient | null {
 }
 
 const ALLOWED = new Set(["image/png", "image/jpeg", "image/webp", "image/gif", "image/svg+xml"]);
-const MAX_BYTES = 5 * 1024 * 1024;
 
 export interface UploadResult {
   ok: boolean;
@@ -51,8 +51,8 @@ export async function uploadImage(file: File, prefix: string): Promise<UploadRes
   if (!ALLOWED.has(file.type)) {
     return { ok: false, error: "Unsupported file type. Use PNG, JPEG, WebP, GIF, or SVG." };
   }
-  if (file.size > MAX_BYTES) {
-    return { ok: false, error: "File is too large (max 5 MB)." };
+  if (file.size > MAX_UPLOAD_BYTES) {
+    return { ok: false, error: `File is too large (max ${MAX_UPLOAD_LABEL}).` };
   }
 
   // Derive the extension from the (untrusted) filename, then hard-restrict it
