@@ -26,6 +26,12 @@ export async function GET() {
   }
 
   return NextResponse.json({
+    // Which deployment served this response — distinguishes "var not saved"
+    // from "still looking at the previous deployment".
+    deployment: {
+      commit: process.env.VERCEL_GIT_COMMIT_SHA?.slice(0, 7) ?? null,
+      message: process.env.VERCEL_GIT_COMMIT_MESSAGE ?? null,
+    },
     storageConfigured: isStorageConfigured(),
     expectedVars: {
       SUPABASE_URL: present("SUPABASE_URL"),
