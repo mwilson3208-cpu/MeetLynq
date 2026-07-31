@@ -8,7 +8,12 @@ import { MAX_UPLOAD_BYTES, MAX_UPLOAD_LABEL } from "./upload-limits";
 
 export const MEDIA_BUCKET = "event-media";
 
-const SUPABASE_URL = process.env.SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL;
+// The project URL is public by design (Supabase ships it in client bundles),
+// so a production fallback in code is safe and ends any dependency on env
+// configuration for it. The keys below are secrets and must come from env.
+const DEFAULT_SUPABASE_URL = "https://gydifuojjfevavawpllf.supabase.co";
+const SUPABASE_URL =
+  process.env.SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL ?? DEFAULT_SUPABASE_URL;
 // Prefer the service-role key for server-side uploads (bypasses RLS); fall back
 // to the anon key for public reads / public-bucket setups.
 const SUPABASE_KEY =
