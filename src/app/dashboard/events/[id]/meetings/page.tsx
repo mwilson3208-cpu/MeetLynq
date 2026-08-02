@@ -1,3 +1,4 @@
+import Link from "next/link";
 import {
   CalendarClock,
   CalendarCheck,
@@ -31,7 +32,15 @@ import {
 } from "../manage-actions";
 import { setMeetingStatus, scheduleMeeting, deleteMeeting } from "./meeting-actions";
 
-const STATUS_FILTERS = ["All", "Requested", "Approved", "Completed", "No-show", "Canceled"];
+// key: querystring value → which meetings match. "No-show" uses the noShow flag.
+const STATUS_FILTERS: { key: string; label: string; match: (m: { status: string; noShow: boolean }) => boolean }[] = [
+  { key: "all", label: "All", match: () => true },
+  { key: "requested", label: "Requested", match: (m) => m.status === "REQUESTED" },
+  { key: "approved", label: "Approved", match: (m) => m.status === "APPROVED" },
+  { key: "completed", label: "Completed", match: (m) => m.status === "COMPLETED" },
+  { key: "no-show", label: "No-show", match: (m) => m.noShow },
+  { key: "canceled", label: "Canceled", match: (m) => m.status === "CANCELED" || m.status === "DECLINED" },
+];
 
 /** One-click meeting status transition. */
 function MeetingStatusButton({
@@ -105,13 +114,17 @@ function MeetingActions({ eventId, id, status }: { eventId: string; id: string; 
 
 export default async function MeetingsPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ status?: string }>;
 }) {
   const { id } = await params;
+  const sp = await searchParams;
+  const activeFilter = STATUS_FILTERS.find((f) => f.key === sp.status) ?? STATUS_FILTERS[0];
   await getEventOr404(id);
 
-  const meetings = await db.meeting.findMany({
+  const allMeetings = await db.meeting.findMany({
     where: { eventId: id },
     include: {
       slot: true,
@@ -198,10 +211,11 @@ export default async function MeetingsPage({
     </FormDialog>
   );
 
-  const total = meetings.length;
-  const approved = meetings.filter((m) => m.status === "APPROVED").length;
-  const completed = meetings.filter((m) => m.status === "COMPLETED").length;
-  const noShows = meetings.filter((m) => m.noShow).length;
+  const meetings = allMeetings.filter((m) => activeFilter.match(m));
+  const total = allMeetings.length;
+  const approved = allMeetings.filter((m) => m.status === "APPROVED").length;
+  const completed = allMeetings.filter((m) => m.status === "COMPLETED").length;
+  const noShows = allMeetings.filter((m) => m.noShow).length;
   const noShowRate = pct(noShows, total);
 
   const slotFields = (s?: (typeof slots)[number]) => (
@@ -306,17 +320,18 @@ export default async function MeetingsPage({
       </div>
 
       <div className="flex flex-wrap gap-2">
-        {STATUS_FILTERS.map((f, i) => (
-          <button
-            key={f}
+        {STATUS_FILTERS.map((f) => (
+          <Link
+            key={f.key}
+            href={f.key === "all" ? `/dashboard/events/${id}/meetings` : `/dashboard/events/${id}/meetings?status=${f.key}`}
             className={
-              i === 0
+              f.key === activeFilter.key
                 ? "rounded-full bg-primary px-3 py-1 text-xs font-medium text-primary-foreground"
                 : "rounded-full border px-3 py-1 text-xs font-medium text-muted-foreground hover:bg-secondary"
             }
           >
-            {f}
-          </button>
+            {f.label}
+          </Link>
         ))}
       </div>
 
@@ -327,13 +342,17 @@ export default async function MeetingsPage({
             <CardDescription>All scheduled and requested meetings.</CardDescription>
           </CardHeader>
           <CardContent className="p-0">
-            {total === 0 ? (
+            {meetings.length === 0 ? (
               <div className="p-6">
                 <EmptyState
                   icon={<CalendarClock />}
-                  title="No meetings yet"
-                  description="Schedule your first meeting to start building the agenda."
-                  action={scheduleDialog}
+                  title={total === 0 ? "No meetings yet" : `No ${activeFilter.label.toLowerCase()} meetings`}
+                  description={
+                    total === 0
+                      ? "Schedule your first meeting to start building the agenda."
+                      : "Try a different status filter."
+                  }
+                  action={total === 0 ? scheduleDialog : undefined}
                 />
               </div>
             ) : (

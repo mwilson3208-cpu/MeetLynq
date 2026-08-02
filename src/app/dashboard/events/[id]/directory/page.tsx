@@ -3,7 +3,9 @@ import { getEventOr404 } from "@/lib/queries";
 import { ExportButton } from "@/components/ui/export-button";
 import { db } from "@/lib/db";
 import { parseJson } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
+import { Button, ButtonLink } from "@/components/ui/button";
+import { ViewProfileButton, RequestMeetingButton } from "@/components/directory/attendee-actions";
+import { requestMeeting } from "../meetings/meeting-actions";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input, Select } from "@/components/ui/input";
@@ -22,6 +24,8 @@ export default async function DirectoryPage({ params }: { params: Promise<{ id: 
     ? Math.round(participants.reduce((sum, p) => sum + p.intentScore, 0) / participants.length)
     : 0;
 
+  const participantOptions = participants.map((p) => ({ id: p.id, name: p.name }));
+
   const industries = Array.from(
     new Set(participants.map((p) => p.industry).filter((i): i is string => Boolean(i)))
   );
@@ -35,9 +39,9 @@ export default async function DirectoryPage({ params }: { params: Promise<{ id: 
         </div>
         <div className="flex items-center gap-2">
           <ExportButton eventId={id} type="participants" />
-          <Button>
+          <ButtonLink href={`/dashboard/events/${id}/attendees`}>
             <UserPlus className="size-4" /> Invite attendees
-          </Button>
+          </ButtonLink>
         </div>
       </div>
 
@@ -124,12 +128,28 @@ export default async function DirectoryPage({ params }: { params: Promise<{ id: 
 
                   <Separator />
                   <div className="flex gap-2">
-                    <Button variant="outline" size="sm" className="flex-1">
-                      View profile
-                    </Button>
-                    <Button size="sm" className="flex-1">
-                      Request meeting
-                    </Button>
+                    <ViewProfileButton
+                      profile={{
+                        id: p.id,
+                        name: p.name,
+                        title: p.title,
+                        companyName: p.companyName,
+                        industry: p.industry,
+                        location: p.location,
+                        bio: p.bio,
+                        goals: p.goals,
+                        lookingFor: p.lookingFor,
+                        offering: p.offering,
+                        tags,
+                        intentScore: p.intentScore,
+                      }}
+                    />
+                    <RequestMeetingButton
+                      eventId={id}
+                      target={{ id: p.id, name: p.name }}
+                      others={participantOptions.filter((o) => o.id !== p.id)}
+                      action={requestMeeting}
+                    />
                   </div>
                 </CardContent>
               </Card>

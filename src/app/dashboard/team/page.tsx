@@ -5,6 +5,9 @@ import { PageHeader, Avatar } from "@/components/ui/misc";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { FormDialog } from "@/components/ui/form-dialog";
+import { inviteMember } from "./actions";
+import { InviteForm } from "./invite-form";
 import { Field, Input, Select } from "@/components/ui/input";
 import { Table, THead, TBody, TR, TH, TD } from "@/components/ui/table";
 import type { Tone } from "@/lib/constants";
@@ -41,9 +44,24 @@ export default async function TeamPage() {
         title="Team & roles"
         description={`Manage who can access ${org.name} and what they can do.`}
         action={
-          <Button>
-            <UserPlus className="size-4" /> Invite member
-          </Button>
+          <FormDialog
+            buttonLabel="Invite member"
+            title="Invite a teammate"
+            description="Adds an existing MeetLynq user to this workspace by email."
+            action={inviteMember}
+            submitLabel="Send invite"
+          >
+            <Field label="Email address">
+              <Input name="email" type="email" required placeholder="teammate@company.com" />
+            </Field>
+            <Field label="Role">
+              <Select name="role" defaultValue="TEAM_MEMBER">
+                <option value="ADMIN">Admin</option>
+                <option value="TEAM_MEMBER">Team member</option>
+                <option value="STAFF">Check-in staff</option>
+              </Select>
+            </Field>
+          </FormDialog>
         }
       />
 
@@ -137,20 +155,8 @@ export default async function TeamPage() {
               <CardTitle>Invite a teammate</CardTitle>
               <CardDescription>Send an invitation to join your workspace.</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <Field label="Email address">
-                <Input type="email" placeholder="teammate@company.com" />
-              </Field>
-              <Field label="Role" hint="You can change this later.">
-                <Select defaultValue="TEAM_MEMBER">
-                  <option value="ADMIN">Admin</option>
-                  <option value="TEAM_MEMBER">Team member</option>
-                  <option value="STAFF">Check-in staff</option>
-                </Select>
-              </Field>
-              <Button className="w-full">
-                <UserPlus className="size-4" /> Send invite
-              </Button>
+            <CardContent>
+              <InviteForm action={inviteMember} />
             </CardContent>
           </Card>
         </div>

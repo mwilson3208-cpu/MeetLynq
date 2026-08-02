@@ -3,7 +3,7 @@ import { db } from "@/lib/db";
 import { PortalShell } from "@/components/layout/portal-shell";
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Button, ButtonLink } from "@/components/ui/button";
 import { Table, THead, TBody, TR, TH, TD } from "@/components/ui/table";
 import { StatCard, EmptyState } from "@/components/ui/misc";
 import { LEAD_QUALITY } from "@/lib/constants";
@@ -39,7 +39,7 @@ export default async function ExhibitorPortal() {
           </div>
           <p className="mt-1 text-sm text-muted-foreground">Your exhibitor dashboard for {event.name}.</p>
         </div>
-        <Button variant="outline"><Download className="size-4" /> Export leads</Button>
+        <ButtonLink href={`/api/events/${event.id}/export?type=leads`} variant="outline"><Download className="size-4" /> Export leads</ButtonLink>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-3">
@@ -100,7 +100,7 @@ export default async function ExhibitorPortal() {
             <div className="flex aspect-square items-center justify-center rounded-xl border-2 border-dashed bg-secondary/40">
               <QrCode className="size-16 text-muted-foreground" />
             </div>
-            <Button className="mt-4 w-full">Scan a badge</Button>
+            <ButtonLink href={`/dashboard/events/${event.id}/check-in`} className="mt-4 w-full">Scan a badge</ButtonLink>
             <p className="mt-3 text-xs text-muted-foreground">
               Works offline — leads sync when you reconnect.
             </p>

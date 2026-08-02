@@ -15,7 +15,7 @@ import { db } from "@/lib/db";
 import { generate } from "@/lib/ai";
 import { StatCard, Progress, EmptyState } from "@/components/ui/misc";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { Button, ButtonLink } from "@/components/ui/button";
 import { Table, THead, TBody, TR, TH, TD } from "@/components/ui/table";
 import { formatMoney, pct } from "@/lib/utils";
 
@@ -52,9 +52,9 @@ export default async function ReportsPage({ params }: { params: Promise<{ id: st
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <ExportButton eventId={id} type="attendees" label="Export CRM-ready CSV" />
-          <Button variant="primary">
+          <ButtonLink href={`/dashboard/events/${id}/emails`} variant="primary">
             <Send /> Launch post-event campaign
-          </Button>
+          </ButtonLink>
         </div>
       </div>
 

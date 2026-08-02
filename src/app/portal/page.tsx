@@ -13,6 +13,8 @@ import { formatTime } from "@/lib/utils";
 import { MEETING_STATUS } from "@/lib/constants";
 import { LogoMark } from "@/components/brand/logo";
 import { Button } from "@/components/ui/button";
+import { RequestMatchButton } from "./request-button";
+import { requestMatchMeeting } from "./actions";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Avatar, EmptyState, Separator } from "@/components/ui/misc";
@@ -138,9 +140,9 @@ export default async function AttendeePortalPage() {
                           {m.reason}
                         </p>
                       )}
-                      <Button variant="outline" size="sm" className="mt-2">
-                        Request meeting
-                      </Button>
+                      {me && m.participantB.id !== me.id ? (
+                        <RequestMatchButton meId={me.id} targetId={m.participantB.id} action={requestMatchMeeting} />
+                      ) : null}
                     </div>
                   </div>
                 ))}

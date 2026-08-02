@@ -6,11 +6,12 @@ import { StatCard, Avatar, EmptyState } from "@/components/ui/misc";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button, type ButtonProps } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { FormDialog } from "@/components/ui/form-dialog";
+import { Field, Input, Select } from "@/components/ui/input";
 import { Table, THead, TBody, TR, TH, TD } from "@/components/ui/table";
 import { formatDate } from "@/lib/utils";
 import { REGISTRATION_STATUS } from "@/lib/constants";
-import { setRegistrationStatus } from "./actions";
+import { setRegistrationStatus, addAttendee } from "./actions";
 
 const STAT_ORDER = ["CONFIRMED", "PENDING", "CHECKED_IN", "WAITLISTED", "CANCELED"] as const;
 
@@ -94,7 +95,7 @@ export default async function AttendeesPage({
   const { id } = await params;
   await getEventOr404(id);
 
-  const [registrations, grouped] = await Promise.all([
+  const [registrations, grouped, tickets] = await Promise.all([
     db.registration.findMany({
       where: { eventId: id },
       include: { ticket: true },
@@ -104,6 +105,11 @@ export default async function AttendeesPage({
       by: ["status"],
       where: { eventId: id },
       _count: true,
+    }),
+    db.ticket.findMany({
+      where: { eventId: id },
+      orderBy: { priceCents: "asc" },
+      select: { id: true, name: true },
     }),
   ]);
 
@@ -122,9 +128,36 @@ export default async function AttendeesPage({
         </div>
         <div className="flex items-center gap-2">
           <ExportButton eventId={id} type="attendees" label="Export" />
-          <Button variant="primary">
-            <UserPlus /> Add attendee
-          </Button>
+          <FormDialog
+            buttonLabel="Add attendee"
+            title="Add attendee"
+            description="Creates a confirmed registration and sends the confirmation email."
+            action={addAttendee}
+            submitLabel="Add attendee"
+          >
+            <input type="hidden" name="eventId" value={id} />
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field label="First name">
+                <Input name="firstName" required maxLength={80} />
+              </Field>
+              <Field label="Last name">
+                <Input name="lastName" required maxLength={80} />
+              </Field>
+            </div>
+            <Field label="Email address">
+              <Input name="email" type="email" required maxLength={254} />
+            </Field>
+            <Field label="Ticket" hint="Optional — counts toward the ticket's sold total.">
+              <Select name="ticketId" defaultValue="">
+                <option value="">No ticket</option>
+                {tickets.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.name}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+          </FormDialog>
         </div>
       </div>
 

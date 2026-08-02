@@ -4,6 +4,9 @@ import { PortalShell } from "@/components/layout/portal-shell";
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { FormDialog } from "@/components/ui/form-dialog";
+import { SpeakerProfileForm } from "./profile-form";
+import { saveSpeakerProfile, addSpeakerResource } from "./actions";
 import { Field, Input, Textarea } from "@/components/ui/input";
 import { EmptyState } from "@/components/ui/misc";
 import { formatTime, parseJson } from "@/lib/utils";
@@ -76,19 +79,16 @@ export default async function SpeakerPortal() {
               </CardTitle>
               <CardDescription>Edits are reviewed by the organizer before publishing.</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <Field label="Title">
-                <Input defaultValue={speaker.title ?? ""} />
-              </Field>
-              <Field label="Bio">
-                <Textarea defaultValue={speaker.bio ?? ""} rows={4} />
-              </Field>
-              <Field label="Session description">
-                <Textarea defaultValue={speaker.sessionDescription ?? ""} rows={3} />
-              </Field>
-              <div className="flex justify-end">
-                <Button>Save changes</Button>
-              </div>
+            <CardContent>
+              <SpeakerProfileForm
+                action={saveSpeakerProfile}
+                speakerId={speaker.id}
+                defaults={{
+                  title: speaker.title ?? "",
+                  bio: speaker.bio ?? "",
+                  sessionDescription: speaker.sessionDescription ?? "",
+                }}
+              />
             </CardContent>
           </Card>
         </div>
@@ -122,11 +122,40 @@ export default async function SpeakerPortal() {
               {resources.length === 0 ? (
                 <p className="text-sm text-muted-foreground">No resources uploaded yet.</p>
               ) : (
-                resources.map((r) => (
-                  <div key={r} className="rounded-lg border p-2 text-sm">{r}</div>
-                ))
+                resources.map((r) => {
+                  const url = r.match(/https?:\/\/\S+/)?.[0];
+                  return url ? (
+                    <a
+                      key={r}
+                      href={url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="block truncate rounded-lg border p-2 text-sm text-primary hover:bg-secondary/50"
+                    >
+                      {r.replace(` — ${url}`, "") || url}
+                    </a>
+                  ) : (
+                    <div key={r} className="rounded-lg border p-2 text-sm">{r}</div>
+                  );
+                })
               )}
-              <Button variant="outline" className="w-full">Upload resource</Button>
+              <FormDialog
+                buttonLabel="Add resource"
+                title="Add a resource"
+                description="Share slides, docs, or any link with your attendees."
+                action={addSpeakerResource}
+                submitLabel="Add resource"
+                buttonVariant="outline"
+                buttonClassName="w-full"
+              >
+                <input type="hidden" name="speakerId" value={speaker.id} />
+                <Field label="Name">
+                  <Input name="label" required maxLength={120} placeholder="Keynote slides" />
+                </Field>
+                <Field label="Link">
+                  <Input name="url" type="url" required placeholder="https://…" />
+                </Field>
+              </FormDialog>
             </CardContent>
           </Card>
         </div>

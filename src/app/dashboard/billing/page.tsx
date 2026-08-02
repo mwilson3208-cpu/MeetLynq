@@ -4,11 +4,13 @@ import { db } from "@/lib/db";
 import { PageHeader, Progress } from "@/components/ui/misc";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Button, ButtonLink } from "@/components/ui/button";
 import { Table, THead, TBody, TR, TH, TD } from "@/components/ui/table";
 import type { Tone } from "@/lib/constants";
 import { ORG_PLANS, labelOf } from "@/lib/constants";
 import { formatMoney, pct } from "@/lib/utils";
+import { setPlan } from "./actions";
+import { PaymentMethodDialog } from "./payment-method-dialog";
 
 const PLAN_LIMITS: Record<string, { events: number; attendees: number; members: number; features: string[] }> = {
   STARTER: { events: 3, attendees: 500, members: 3, features: ["Up to 3 events", "500 attendees", "Core matchmaking", "Email support"] },
@@ -47,9 +49,9 @@ export default async function BillingPage() {
         title="Billing"
         description="Manage your plan, usage, and payment details."
         action={
-          <Button>
+          <ButtonLink href="#plans">
             <ArrowUpRight className="size-4" /> Upgrade plan
-          </Button>
+          </ButtonLink>
         }
       />
 
@@ -80,7 +82,7 @@ export default async function BillingPage() {
         </div>
       </div>
 
-      <Card className="mt-8">
+      <Card className="mt-8" id="plans">
         <CardHeader>
           <CardTitle>Compare plans</CardTitle>
           <CardDescription>Pricing is per workspace, billed monthly.</CardDescription>
@@ -104,14 +106,18 @@ export default async function BillingPage() {
                       <span className="text-sm font-normal text-muted-foreground">/mo</span>
                     )}
                   </p>
-                  <Button
-                    variant={current ? "outline" : "secondary"}
-                    size="sm"
-                    className="mt-4 w-full"
-                    disabled={current}
-                  >
-                    {current ? "Your plan" : "Choose"}
-                  </Button>
+                  <form action={setPlan} className="mt-4">
+                    <input type="hidden" name="plan" value={p.key} />
+                    <Button
+                      type="submit"
+                      variant={current ? "outline" : "secondary"}
+                      size="sm"
+                      className="w-full"
+                      disabled={current}
+                    >
+                      {current ? "Your plan" : "Choose"}
+                    </Button>
+                  </form>
                 </div>
               );
             })}
@@ -123,7 +129,7 @@ export default async function BillingPage() {
         <Card className="min-w-0 lg:col-span-2">
           <CardHeader>
             <CardTitle>Invoices</CardTitle>
-            <CardDescription>Your recent billing history.</CardDescription>
+            <CardDescription>Sample data — real invoices appear here once Stripe billing is enabled.</CardDescription>
           </CardHeader>
           <CardContent className="px-0">
             <Table>
@@ -165,7 +171,7 @@ export default async function BillingPage() {
                 <p className="text-xs text-muted-foreground">Expires 04/28</p>
               </div>
             </div>
-            <Button variant="outline" size="sm" className="w-full">Update payment method</Button>
+            <PaymentMethodDialog stripeConfigured={Boolean(process.env.STRIPE_SECRET_KEY)} />
           </CardContent>
         </Card>
       </div>

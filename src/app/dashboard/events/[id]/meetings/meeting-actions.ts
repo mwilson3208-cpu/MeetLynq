@@ -73,6 +73,39 @@ export async function scheduleMeeting(_prev: State | null, fd: FormData): Promis
   return { ok: true };
 }
 
+/**
+ * Create a meeting request (status REQUESTED, invitee response pending) between
+ * two participants — used from the directory, marketplace, and portals.
+ */
+export async function requestMeeting(_prev: State | null, fd: FormData): Promise<State> {
+  const event = await getEventOr404(str(fd, "eventId"));
+  const aId = str(fd, "participantAId");
+  const bId = str(fd, "participantBId");
+  if (!aId || !bId) return { error: "Pick a participant to meet with." };
+  if (aId === bId) return { error: "Pick two different participants." };
+
+  const found = await db.participant.count({ where: { id: { in: [aId, bId] }, eventId: event.id } });
+  if (found !== 2) return { error: "Those participants weren't found for this event." };
+
+  await db.meeting.create({
+    data: {
+      eventId: event.id,
+      type: "ONE_TO_ONE",
+      status: "REQUESTED",
+      mode: str(fd, "mode") || "IN_PERSON",
+      goal: str(fd, "goal") || null,
+      participants: {
+        create: [
+          { participantId: aId, role: "REQUESTER", response: "ACCEPTED" },
+          { participantId: bId, role: "INVITEE", response: "PENDING" },
+        ],
+      },
+    },
+  });
+  revalidate(event.id);
+  return { ok: true };
+}
+
 /** Remove a meeting (cascades its participants and ratings). */
 export async function deleteMeeting(fd: FormData): Promise<void> {
   const event = await getEventOr404(str(fd, "eventId"));

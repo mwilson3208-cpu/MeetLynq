@@ -3,7 +3,9 @@ import { db } from "@/lib/db";
 import { PortalShell } from "@/components/layout/portal-shell";
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Button, ButtonLink } from "@/components/ui/button";
+import { RequestMeetingButton } from "@/components/directory/attendee-actions";
+import { requestMeeting } from "../dashboard/events/[id]/meetings/meeting-actions";
 import { Table, THead, TBody, TR, TH, TD } from "@/components/ui/table";
 import { StatCard, EmptyState, Progress } from "@/components/ui/misc";
 import { SPONSOR_LEVELS, LEAD_QUALITY } from "@/lib/constants";
@@ -26,6 +28,12 @@ export default async function SponsorPortal() {
   if (!sponsor) {
     return <EmptyState icon={<Building2 />} title="No sponsor profile" description="No sponsor has been added to this event yet." />;
   }
+  const topAttendees = await db.participant.findMany({
+    where: { eventId: event.id },
+    orderBy: { intentScore: "desc" },
+    take: 30,
+    select: { id: true, name: true },
+  });
   const level = SPONSOR_LEVELS[sponsor.level] ?? { label: sponsor.level, tone: "neutral" as const };
   const hot = sponsor.leads.filter((l) => l.quality === "HOT").length;
 
@@ -39,7 +47,7 @@ export default async function SponsorPortal() {
           </div>
           <p className="mt-1 text-sm text-muted-foreground">Your sponsorship dashboard for {event.name}.</p>
         </div>
-        <Button variant="outline"><Download className="size-4" /> Export leads</Button>
+        <ButtonLink href={`/api/events/${event.id}/export?type=leads`} variant="outline"><Download className="size-4" /> Export leads</ButtonLink>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-3">
@@ -113,7 +121,18 @@ export default async function SponsorPortal() {
               <p className="text-sm text-muted-foreground">
                 Request 1:1 meetings with high-intent attendees. Your team can accept or propose new times.
               </p>
-              <Button className="mt-3 w-full">Request a meeting</Button>
+              {topAttendees.length >= 2 ? (
+                <RequestMeetingButton
+                  eventId={event.id}
+                  target={topAttendees[0]}
+                  others={topAttendees.slice(1)}
+                  action={requestMeeting}
+                  buttonLabel="Request a meeting"
+                  className="mt-3 w-full"
+                />
+              ) : (
+                <p className="mt-3 text-sm text-muted-foreground">Attendee profiles appear here once registrations open.</p>
+              )}
             </CardContent>
           </Card>
         </div>

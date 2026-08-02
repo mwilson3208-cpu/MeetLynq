@@ -3,6 +3,10 @@ import { getEventOr404 } from "@/lib/queries";
 import { db } from "@/lib/db";
 import { parseJson } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { ContactButton } from "@/components/directory/contact-button";
+import { RequestMeetingButton } from "@/components/directory/attendee-actions";
+import { requestMeeting } from "../meetings/meeting-actions";
+import { startConversation } from "../conversations/actions";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input, Field, Select, Textarea } from "@/components/ui/input";
@@ -14,6 +18,15 @@ import { createMarketplacePost, updateMarketplacePost, deleteMarketplacePost } f
 export default async function MarketplacePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   await getEventOr404(id);
+
+  const participants = await db.participant.findMany({
+    where: { eventId: id },
+    select: { id: true, name: true },
+    orderBy: { name: "asc" },
+  });
+  // Posts store only the author's display name, so resolve the matching
+  // participant by name for messaging/meetings (assumption noted in QA audit).
+  const byName = new Map(participants.map((p) => [p.name, p]));
 
   const posts = await db.marketplacePost.findMany({
     where: { eventId: id },
@@ -146,14 +159,24 @@ export default async function MarketplacePage({ params }: { params: Promise<{ id
                   </div>
 
                   <Separator />
-                  <div className="flex gap-2">
-                    <Button variant="outline" size="sm" className="flex-1">
-                      Contact
-                    </Button>
-                    <Button size="sm" className="flex-1">
-                      Request meeting
-                    </Button>
-                  </div>
+                  {(() => {
+                    const author = byName.get(post.authorName);
+                    if (!author) {
+                      return (
+                        <p className="text-xs text-muted-foreground">
+                          {post.authorName} isn&apos;t in the participant directory yet — add them to
+                          enable messaging and meetings.
+                        </p>
+                      );
+                    }
+                    const others = participants.filter((o) => o.id !== author.id);
+                    return (
+                      <div className="flex gap-2">
+                        <ContactButton eventId={id} target={author} others={others} action={startConversation} />
+                        <RequestMeetingButton eventId={id} target={author} others={others} action={requestMeeting} />
+                      </div>
+                    );
+                  })()}
                 </CardContent>
               </Card>
             );

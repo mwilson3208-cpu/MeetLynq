@@ -3,11 +3,16 @@ import { requireOrg } from "@/lib/queries";
 import { db } from "@/lib/db";
 import { PageHeader, StatCard, EmptyState, Avatar } from "@/components/ui/misc";
 import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { ButtonLink } from "@/components/ui/button";
 
 export default async function CommunityPage() {
   const { org } = await requireOrg();
 
+  const latestEvent = await db.event.findFirst({
+    where: { organizationId: org.id },
+    orderBy: { createdAt: "desc" },
+    select: { id: true },
+  });
   const [memberCount, eventsHosted, conversations, members] = await Promise.all([
     db.participant.count({ where: { event: { organizationId: org.id } } }),
     db.event.count({ where: { organizationId: org.id } }),
@@ -25,9 +30,11 @@ export default async function CommunityPage() {
         title="Community"
         description="Keep your audience connected year-round, between events."
         action={
-          <Button>
-            <ArrowUpRight className="size-4" /> Open community
-          </Button>
+          latestEvent ? (
+            <ButtonLink href={`/dashboard/events/${latestEvent.id}/directory`}>
+              <ArrowUpRight className="size-4" /> Open community
+            </ButtonLink>
+          ) : undefined
         }
       />
 

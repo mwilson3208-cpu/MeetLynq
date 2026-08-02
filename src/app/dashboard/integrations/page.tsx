@@ -6,6 +6,17 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Table, THead, TBody, TR, TH, TD } from "@/components/ui/table";
+import { FormDialog } from "@/components/ui/form-dialog";
+import { Field, Input, Select } from "@/components/ui/input";
+import { DocsDialog } from "./docs-dialog";
+import {
+  connectIntegration,
+  disconnectIntegration,
+  addWebhook,
+  deleteWebhook,
+  regenerateApiKey,
+} from "./actions";
+import { API_KEY_PROVIDER } from "./constants";
 
 const PROVIDERS: { key: string; name: string; description: string }[] = [
   { key: "hubspot", name: "HubSpot", description: "Sync registrations and leads into your HubSpot CRM." },
@@ -24,6 +35,17 @@ export default async function IntegrationsPage() {
   ]);
 
   const byProvider = new Map(integrations.map((i) => [i.provider, i]));
+
+  const apiKeyRow = integrations.find((i) => i.provider === API_KEY_PROVIDER);
+  let apiKeyMasked = "No API key yet";
+  if (apiKeyRow) {
+    try {
+      const key: string = JSON.parse(apiKeyRow.config).key ?? "";
+      if (key) apiKeyMasked = `${key.slice(0, 9)}••••••••••••${key.slice(-4)}`;
+    } catch {
+      // ignore malformed config
+    }
+  }
 
   return (
     <div>
@@ -49,9 +71,12 @@ export default async function IntegrationsPage() {
                 </div>
                 <p className="mt-3 font-semibold">{p.name}</p>
                 <p className="mt-1 flex-1 text-sm text-muted-foreground">{p.description}</p>
-                <Button variant={connected ? "outline" : "primary"} size="sm" className="mt-4 w-full">
-                  {connected ? "Manage" : "Connect"}
-                </Button>
+                <form action={connected ? disconnectIntegration : connectIntegration} className="mt-4">
+                  <input type="hidden" name="provider" value={p.key} />
+                  <Button type="submit" variant={connected ? "outline" : "primary"} size="sm" className="w-full">
+                    {connected ? "Disconnect" : "Connect"}
+                  </Button>
+                </form>
               </CardContent>
             </Card>
           );
@@ -68,9 +93,28 @@ export default async function IntegrationsPage() {
                 </CardTitle>
                 <CardDescription>Receive real-time events at your endpoints.</CardDescription>
               </div>
-              <Button variant="outline" size="sm">
-                <Plus className="size-4" /> Add webhook
-              </Button>
+<FormDialog
+                buttonLabel="Add webhook"
+                title="Add webhook"
+                description="We'll POST a signed JSON payload to your endpoint when the event fires."
+                action={addWebhook}
+                submitLabel="Add webhook"
+                buttonSize="sm"
+                buttonVariant="outline"
+              >
+                <Field label="Endpoint URL">
+                  <Input name="url" type="url" required placeholder="https://example.com/hooks/meetlynq" />
+                </Field>
+                <Field label="Event">
+                  <Select name="event" defaultValue="registration.created">
+                    <option value="registration.created">registration.created</option>
+                    <option value="registration.confirmed">registration.confirmed</option>
+                    <option value="meeting.booked">meeting.booked</option>
+                    <option value="lead.captured">lead.captured</option>
+                    <option value="survey.response">survey.response</option>
+                  </Select>
+                </Field>
+              </FormDialog>
             </CardHeader>
             <CardContent className="px-0">
               {webhooks.length === 0 ? (
@@ -79,11 +123,28 @@ export default async function IntegrationsPage() {
                     icon={<WebhookIcon />}
                     title="No webhooks yet"
                     description="Add an endpoint to start receiving event notifications."
-                    action={
-                      <Button variant="outline" size="sm">
-                        <Plus className="size-4" /> Add webhook
-                      </Button>
-                    }
+                    action={<FormDialog
+                        buttonLabel="Add webhook"
+                        title="Add webhook"
+                        description="We'll POST a signed JSON payload to your endpoint when the event fires."
+                        action={addWebhook}
+                        submitLabel="Add webhook"
+                        buttonSize="sm"
+                        buttonVariant="outline"
+                      >
+                        <Field label="Endpoint URL">
+                          <Input name="url" type="url" required placeholder="https://example.com/hooks/meetlynq" />
+                        </Field>
+                        <Field label="Event">
+                          <Select name="event" defaultValue="registration.created">
+                            <option value="registration.created">registration.created</option>
+                            <option value="registration.confirmed">registration.confirmed</option>
+                            <option value="meeting.booked">meeting.booked</option>
+                            <option value="lead.captured">lead.captured</option>
+                            <option value="survey.response">survey.response</option>
+                          </Select>
+                        </Field>
+                      </FormDialog>}
                   />
                 </div>
               ) : (
@@ -93,6 +154,7 @@ export default async function IntegrationsPage() {
                       <TH>Endpoint URL</TH>
                       <TH>Event</TH>
                       <TH>Status</TH>
+                      <TH className="text-right">{"\u00A0"}</TH>
                     </TR>
                   </THead>
                   <TBody>
@@ -104,6 +166,14 @@ export default async function IntegrationsPage() {
                           <Badge tone={w.active ? "success" : "neutral"}>
                             {w.active ? "Active" : "Paused"}
                           </Badge>
+                        </TD>
+                        <TD className="text-right">
+                          <form action={deleteWebhook}>
+                            <input type="hidden" name="id" value={w.id} />
+                            <Button type="submit" variant="ghost" size="sm">
+                              Remove
+                            </Button>
+                          </form>
                         </TD>
                       </TR>
                     ))}
@@ -124,11 +194,15 @@ export default async function IntegrationsPage() {
             </CardHeader>
             <CardContent className="space-y-3">
               <div className="rounded-lg border bg-secondary/40 px-3 py-2 font-mono text-xs">
-                mlq_live_••••••••••••••••4242
+                {apiKeyMasked}
               </div>
               <div className="flex gap-2">
-                <Button variant="outline" size="sm">Regenerate</Button>
-                <Button variant="ghost" size="sm">View docs</Button>
+                <form action={regenerateApiKey}>
+                  <Button type="submit" variant="outline" size="sm">
+                    {apiKeyMasked === "No API key yet" ? "Generate key" : "Regenerate"}
+                  </Button>
+                </form>
+                <DocsDialog />
               </div>
               <p className="text-xs text-muted-foreground">
                 Treat your secret key like a password. It grants full access to your workspace data.

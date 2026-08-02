@@ -32,6 +32,8 @@ export function FormDialog({
   action,
   submitLabel = "Save",
   buttonSize = "md",
+  buttonVariant,
+  buttonClassName,
   mode = "add",
   children,
 }: {
@@ -41,6 +43,8 @@ export function FormDialog({
   action: Action;
   submitLabel?: string;
   buttonSize?: "sm" | "md" | "lg";
+  buttonVariant?: "primary" | "outline" | "ghost" | "success" | "destructive";
+  buttonClassName?: string;
   mode?: "add" | "edit";
   children: React.ReactNode;
 }) {
@@ -64,8 +68,8 @@ export function FormDialog({
           <Pencil className="size-4" />
         </button>
       ) : (
-        <Button size={buttonSize} onClick={() => setOpen(true)}>
-          <Plus className="size-4" /> {buttonLabel}
+        <Button size={buttonSize} variant={buttonVariant} className={buttonClassName} onClick={() => setOpen(true)}>
+          {buttonVariant ? null : <Plus className="size-4" />} {buttonLabel}
         </Button>
       )}
       <Dialog open={open} onClose={() => setOpen(false)} title={title} description={description}>
